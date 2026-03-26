@@ -242,6 +242,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   startHeartbeat(config.checkInterval || 15, config.autoCheck !== false);
 
+  // Dynamic Version Injection
+  const appVersionDisplay = document.getElementById('appVersionDisplay');
+  if (appVersionDisplay && window.__TAURI__ && window.__TAURI__.app) {
+      window.__TAURI__.app.getVersion().then(v => {
+          appVersionDisplay.textContent = `版本 v${v} | 中国矿业大学`;
+      }).catch(console.error);
+  }
+
   // Check Status Click
   checkBtn.addEventListener('click', async () => {
     checkBtn.disabled = true;

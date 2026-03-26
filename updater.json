@@ -1,11 +1,11 @@
 {
-  "version": "1.20.0",
-  "notes": "校园网自动登录 v1.20.0 更新啦！\n1. 修复了ui界面版本显示 \n2. 修复了能同时打开多次的问题",
+  "version": "1.20.1",
+  "notes": "校园网自动登录 v1.20.1 更新啦！\n1. 修复了ui界面版本号显示 \n2. 修复了检测连接状态程序ui卡死的问题",
   "pub_date": "2026-03-26T12:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDFKTHoreXF2OFRyV3NidkV5L1FQZ0JRSlNJdEdVVGlOQ0sya0JvNFNUbnFiUGdYYndZeXVkd2R5L2ZPM3MrV1pMZUtraDV2aGg1RlBNQXBJdytGUWdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NTQwNDYxCWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuMF94NjQtc2V0dXAubnNpcy56aXAKejEza2Fwd1ZySmErODh3WjVLWFdPRUZwWlZTNisyYVpLNkZvYm5zVUwxc1JtcGo4MDdaRWZFRGtoOGlnN1lIeDdsYlpwNVVWM0ROT3lIQVZhSjZmRHc9PQo=",
-      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/releases/download/1.20.0/%E4%B8%AD%E5%9B%BD%E7%9F%BF%E4%B8%9A%E5%A4%A7%E5%AD%A6%E6%A0%A1%E5%9B%AD%E7%BD%91%E8%87%AA%E5%8A%A8%E7%99%BB%E5%BD%95_1.20.0_x64-setup.nsis.zip"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDdNRUFLWUc2OUVzZ2VueGVXdFZUSENkQVRFVytqTERnZExaWnF6dS9QZHNNN1VSbXFRNDVCNWJpV1ZPUmdKUk1DTDBkR0ZNaEUzSUZIb2hBTTUwb2dFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NTQxMjEwCWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuMV94NjQtc2V0dXAubnNpcy56aXAKUXcyUElNOHhSWGtjc1BmcW1TZHVNYkdlQjBLZkRUeHBQSVdXVHFyTjUxN0JoMDRib25XYmFwU3F0YzFqS08wR2JUMmx0cVF4Z2JUR3l0ZFlJZTY4Q2c9PQo=",
+      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/releases/download/1.20.1/%E4%B8%AD%E5%9B%BD%E7%9F%BF%E4%B8%9A%E5%A4%A7%E5%AD%A6%E6%A0%A1%E5%9B%AD%E7%BD%91%E8%87%AA%E5%8A%A8%E7%99%BB%E5%BD%95_1.20.1_x64-setup.nsis.zip"
     }
   }
 }

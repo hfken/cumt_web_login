@@ -3,7 +3,6 @@
     windows_subsystem = "windows"
 )]
 
-use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -100,15 +99,15 @@ fn save_config(config: Config, _app_handle: tauri::AppHandle) {
 }
 
 #[tauri::command]
-fn check_connection() -> StatusResult {
-    let client = Client::builder().timeout(std::time::Duration::from_secs(3)).build().unwrap();
+async fn check_connection() -> StatusResult {
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(3)).build().unwrap();
     let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis();
     let v_key = fastrand::u32(1000..9999);
     
     let url = format!("http://10.2.5.251/drcom/chkstatus?callback=dr{}&v={}", timestamp, v_key);
     
-    if let Ok(res) = client.get(&url).send() {
-        if let Ok(text) = res.text() {
+    if let Ok(res) = client.get(&url).send().await {
+        if let Ok(text) = res.text().await {
             if let Some(start) = text.find('(') {
                 if let Some(end) = text.rfind(')') {
                     let json_str = &text[start+1..end];
@@ -128,8 +127,8 @@ fn check_connection() -> StatusResult {
 }
 
 #[tauri::command]
-fn do_login(config: Config, app_handle: tauri::AppHandle) -> LoginResult {
-    let status = check_connection();
+async fn do_login(config: Config, app_handle: tauri::AppHandle) -> LoginResult {
+    let status = check_connection().await;
     let account = if config.operator == "none" { config.student_id.clone() } else { format!("{}@{}", config.student_id, config.operator) };
     
     if status.connected {
@@ -144,7 +143,7 @@ fn do_login(config: Config, app_handle: tauri::AppHandle) -> LoginResult {
     
     let ip = status.ip.clone();
     
-    let client = Client::builder().timeout(std::time::Duration::from_secs(5)).build().unwrap();
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(5)).build().unwrap();
     let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis();
     
     let enc_account = urlencoding::encode(&account);
@@ -152,8 +151,8 @@ fn do_login(config: Config, app_handle: tauri::AppHandle) -> LoginResult {
     
     let login_url = format!("http://10.2.5.251:801/eportal/?c=Portal&a=login&callback=dr{}&login_method=1&user_account={}&user_password={}&wlan_user_ip={}&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&jsVersion=3.0&_={}", timestamp, enc_account, enc_password, ip, timestamp);
     
-    if let Ok(res) = client.get(&login_url).send() {
-        if let Ok(text) = res.text() {
+    if let Ok(res) = client.get(&login_url).send().await {
+        if let Ok(text) = res.text().await {
             if text.contains("\"result\":\"1\"") || text.contains("\"result\":1") || text.contains("成功") || text.contains("success") {
                 let _ = Notification::new(&app_handle.config().tauri.bundle.identifier)
                     .title("中国矿业大学校园网")
@@ -169,18 +168,18 @@ fn do_login(config: Config, app_handle: tauri::AppHandle) -> LoginResult {
 }
 
 #[tauri::command]
-fn do_logout() -> LoginResult {
-    let status = check_connection();
+async fn do_logout() -> LoginResult {
+    let status = check_connection().await;
     if !status.connected {
         return LoginResult { success: true, message: "当前未登录，无需注销".into() };
     }
     let ip = status.ip;
-    let client = Client::builder().timeout(std::time::Duration::from_secs(5)).build().unwrap();
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(5)).build().unwrap();
     let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis();
     let logout_url = format!("http://10.2.5.251:801/eportal/?c=Portal&a=logout&callback=dr{}&login_method=1&user_account=drcom&user_password=123&ac_logout=0&wlan_user_ip={}&wlan_user_ipv6=&wlan_vlan_id=1&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&jsVersion=3.0&_={}", timestamp, ip, timestamp);
     
-    if let Ok(res) = client.get(&logout_url).send() {
-        if let Ok(text) = res.text() {
+    if let Ok(res) = client.get(&logout_url).send().await {
+        if let Ok(text) = res.text().await {
             if text.contains("\"result\":\"1\"") || text.contains("\"result\":1") || text.contains("成功") || text.contains("success") {
                 return LoginResult { success: true, message: "注销成功".into() };
             } else {
