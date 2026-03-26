@@ -37,7 +37,8 @@
       "resources": [],
       "shortDescription": "",
       "targets": [
-        "nsis"
+        "nsis",
+        "updater"
       ],
       "windows": {
         "certificateThumbprint": null,
