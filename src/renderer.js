@@ -30,6 +30,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const checkUpdateBtn = document.getElementById('checkUpdateBtn');
   const settingsError = document.getElementById('settingsError');
 
+  const inlineUpdateBox = document.getElementById('inlineUpdateBox');
+  const updateVersionText = document.getElementById('updateVersionText');
+  const updateNotesContainer = document.getElementById('updateNotesContainer');
+
   let overrideSuccessView = false;
   let wasConnected = null;
 
@@ -69,6 +73,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (closeSettingsBtn) {
     closeSettingsBtn.addEventListener('click', () => {
+      // Reset Update Dialog Layout State
+      if (checkUpdateBtn && checkUpdateBtn.dataset.pendingUpdate === "true") {
+          checkUpdateBtn.dataset.pendingUpdate = "false";
+          checkUpdateBtn.textContent = '检查更新';
+          checkUpdateBtn.classList.remove('shake');
+          if (inlineUpdateBox) inlineUpdateBox.classList.add('view-hidden');
+      }
+
       const isAutoCheck = autoCheckInput ? autoCheckInput.checked : true;
       const intervalVal = parseInt(checkIntervalInput.value, 10);
       
@@ -101,34 +113,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check Updates Logic
   if (checkUpdateBtn) {
     checkUpdateBtn.addEventListener('click', async () => {
-      const originalText = checkUpdateBtn.textContent;
+      if (checkUpdateBtn.dataset.pendingUpdate === "true") {
+          checkUpdateBtn.textContent = '下载网络包...';
+          checkUpdateBtn.disabled = true;
+          try {
+              await invoke('install_update');
+              checkUpdateBtn.textContent = '成功！重启中...';
+              setTimeout(() => invoke('restart_app').catch(console.error), 800);
+          } catch(e) {
+              if (settingsError) {
+                  settingsError.textContent = "更新安装失败: " + e;
+                  settingsError.classList.remove('view-hidden');
+              }
+              checkUpdateBtn.textContent = '一键更新';
+              checkUpdateBtn.disabled = false;
+          }
+          return;
+      }
+
+      const originalText = '检查更新';
       checkUpdateBtn.textContent = '检查中...';
       checkUpdateBtn.disabled = true;
       if (settingsError) settingsError.classList.add('view-hidden');
+      if (inlineUpdateBox) inlineUpdateBox.classList.add('view-hidden');
 
       try {
-        const updateVersion = await invoke('check_for_updates');
-        if (updateVersion) {
-            checkUpdateBtn.textContent = `发现新版 v${updateVersion}，点击更新`;
+        const updateInfo = await invoke('check_for_updates');
+        if (updateInfo && updateInfo.available) {
+            checkUpdateBtn.dataset.pendingUpdate = "true";
+            checkUpdateBtn.textContent = '一键更新';
             checkUpdateBtn.classList.add('shake');
-            checkUpdateBtn.onclick = async () => {
-                checkUpdateBtn.onclick = null;
-                checkUpdateBtn.textContent = '正在后台下载覆盖... 请勿关闭';
-                checkUpdateBtn.disabled = true;
-                if (settingsError) settingsError.classList.add('view-hidden');
-                
-                try {
-                    await invoke('install_update');
-                    checkUpdateBtn.textContent = '更新完成，请手动重启软件';
-                } catch(e) {
-                    if (settingsError) {
-                        settingsError.textContent = "更新安装失败: " + e;
-                        settingsError.classList.remove('view-hidden');
-                    }
-                    checkUpdateBtn.textContent = '更新出错';
-                }
-            };
             checkUpdateBtn.disabled = false;
+            
+            if (updateVersionText) updateVersionText.textContent = `🚀 v${updateInfo.version} 发现新版本`;
+            if (updateNotesContainer) {
+                updateNotesContainer.textContent = updateInfo.notes ? updateInfo.notes : '此次更新没有提供详细的更新日志。';
+            }
+            if (inlineUpdateBox) inlineUpdateBox.classList.remove('view-hidden');
         } else {
             checkUpdateBtn.textContent = '已是最新版本';
             setTimeout(() => {
@@ -138,14 +159,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       } catch (e) {
         if (settingsError) {
-            settingsError.textContent = '检查更新失败，请确保 Gitee Endpoint 与 Pubkey 签名配置正确。\n开发者报错: ' + e;
+            settingsError.textContent = '网络不通，或你尚未为此版本生成安全签名。\n底层截获: ' + e;
             settingsError.classList.remove('view-hidden');
         }
-        checkUpdateBtn.textContent = '网络/配置故障';
+        checkUpdateBtn.textContent = '网络/签名故障';
         setTimeout(() => {
             checkUpdateBtn.textContent = originalText;
             checkUpdateBtn.disabled = false;
-            if (settingsError && settingsError.textContent.includes('检查更新失败')) {
+            if (settingsError && settingsError.textContent.includes('网络不通')) {
                  settingsError.classList.add('view-hidden');
             }
         }, 8000);

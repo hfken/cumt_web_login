@@ -46,6 +46,13 @@ struct StatusResult {
 }
 
 #[derive(Serialize)]
+struct UpdateInfo {
+    available: bool,
+    version: String,
+    notes: String,
+}
+
+#[derive(Serialize)]
 struct LoginResult {
     success: bool,
     message: String,
@@ -192,13 +199,17 @@ fn notify_drop(app_handle: tauri::AppHandle) {
 }
 
 #[tauri::command]
-async fn check_for_updates(app_handle: tauri::AppHandle) -> Result<String, String> {
+async fn check_for_updates(app_handle: tauri::AppHandle) -> Result<UpdateInfo, String> {
     match tauri::updater::builder(app_handle.clone()).check().await {
         Ok(update) => {
             if update.is_update_available() {
-                Ok(update.latest_version().to_string())
+                Ok(UpdateInfo {
+                    available: true,
+                    version: update.latest_version().to_string(),
+                    notes: update.body().cloned().unwrap_or_default(),
+                })
             } else {
-                Ok("".to_string())
+                Ok(UpdateInfo { available: false, version: "".to_string(), notes: "".to_string() })
             }
         }
         Err(e) => Err(e.to_string()),
@@ -218,6 +229,11 @@ async fn install_update(app_handle: tauri::AppHandle) -> Result<(), String> {
         }
         Err(e) => Err(e.to_string()),
     }
+}
+
+#[tauri::command]
+fn restart_app(app_handle: tauri::AppHandle) {
+    app_handle.restart();
 }
 
 fn main() {
@@ -273,7 +289,8 @@ fn main() {
             do_logout, 
             notify_drop,
             check_for_updates,
-            install_update
+            install_update,
+            restart_app
         ])
         .setup(|app| {
             let window = app.get_window("main").unwrap();
