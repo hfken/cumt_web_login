@@ -19,9 +19,9 @@
 
 ## 📸 界面预览
 
-<!-- ![登录页](assets/login.png) -->
-<!-- ![已连接](assets/success.png) -->
-<!-- ![设置页](assets/setting.png) -->
+![登录页](assets/login.png)
+![已连接](assets/success.png)
+![设置页](assets/setting.png)
 
 ## 🚀 快速上手 (开发者环境)
 
