@@ -13,6 +13,7 @@ use serde_json;
 use reqwest;
 use winreg::enums::*;
 use winreg::RegKey;
+use tauri_plugin_single_instance;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase", default)]
@@ -202,15 +203,11 @@ fn notify_drop(app_handle: tauri::AppHandle) {
 async fn check_for_updates(app_handle: tauri::AppHandle) -> Result<UpdateInfo, String> {
     match tauri::updater::builder(app_handle.clone()).check().await {
         Ok(update) => {
-            if update.is_update_available() {
-                Ok(UpdateInfo {
-                    available: true,
-                    version: update.latest_version().to_string(),
-                    notes: update.body().cloned().unwrap_or_default(),
-                })
-            } else {
-                Ok(UpdateInfo { available: false, version: "".to_string(), notes: "".to_string() })
-            }
+            Ok(UpdateInfo {
+                available: update.is_update_available(),
+                version: update.latest_version().to_string(),
+                notes: update.body().cloned().unwrap_or_default(),
+            })
         }
         Err(e) => Err(e.to_string()),
     }
@@ -252,6 +249,17 @@ fn main() {
     let tray = SystemTray::new().with_menu(tray_menu).with_tooltip("校园网自动登录");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(window) = app.get_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+            let _ = Notification::new(&app.config().tauri.bundle.identifier)
+                .title("校园网自动登录")
+                .body("程序已在系统托盘静默运行中，请勿重复打开！")
+                .show();
+        }))
         .system_tray(tray)
         .on_system_tray_event(|app, event| match event {
             SystemTrayEvent::LeftClick { .. } => {

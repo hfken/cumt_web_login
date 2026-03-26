@@ -1,10 +1,10 @@
 {
-  "version": "1.11.1",
-  "notes": "🚀 校园网自动登录 v1.11.1 更新啦！\n1. 修改了ui界面版本显示的小问题",
+  "version": "1.2.0",
+  "notes": "🚀 校园网自动登录 v1.2.0 更新啦！\n1. 修复了ui界面版本显示 \n2. 修复了能同时打开多次的问题",
   "pub_date": "2026-03-26T12:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDNNbk1SdE43MjU0dnVrU1RDTHJ4VFZHQ2lMdWxEdlJMaGVHbUh0VXFiMElLSUlHbmN2MmRPSTBaS1A0ZFBiU1l0My9neGRlZWdmcm9LbGhWTndHZ3dBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NTI1ODc3CWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMTEuMV94NjQtc2V0dXAubnNpcy56aXAKak9WdmRMK1ZrdEdmenFhcEc1RDlPYVI0a0ZuNkVObzNiQ290cVpQK05MdTZ3bEZvOFJOcXNJaWZBaCtrSnZEby90RjZ0dWpaVUFkS0FtYjVMUlJqREE9PQo=",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDVCMjJHaHNBSm9xWldFMXppaG5UVENiNFUvSTNma3lmeVN6WTVPNXNLdUJ5OUFVRWoyT2hVRGIxNFl3a2hUK3UrTExoYkV5ZnBrSTNqdlVOZ1FSRVFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NTM4NTY2CWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMi4wX3g2NC1zZXR1cC5uc2lzLnppcAplTCt0UFdsZzU3ZHpCR3N1QW4vZktoeEp3Wm9laVRQT3ZPRkk4dzhBRUdacElQd1o2T2REY21zWmJER0ttbUg1NnFSQzRXY0FXNDh3L1k0dHhTMjNBQT09Cg==",
       "url": "https://gitee.com/huangyaowei2005/cumt_web_login/releases/download/1.11.1/%E4%B8%AD%E5%9B%BD%E7%9F%BF%E4%B8%9A%E5%A4%A7%E5%AD%A6%E6%A0%A1%E5%9B%AD%E7%BD%91%E8%87%AA%E5%8A%A8%E7%99%BB%E5%BD%95_1.11.1_x64-setup.nsis.zip"
     }
   }

@@ -139,23 +139,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       try {
         const updateInfo = await invoke('check_for_updates');
-        if (updateInfo && updateInfo.available) {
-            checkUpdateBtn.dataset.pendingUpdate = "true";
-            checkUpdateBtn.textContent = '一键更新';
-            checkUpdateBtn.classList.add('shake');
-            checkUpdateBtn.disabled = false;
-            
-            if (updateVersionText) updateVersionText.textContent = `🚀 v${updateInfo.version} 发现新版本`;
+        if (updateInfo) {
+            if (updateInfo.available) {
+                checkUpdateBtn.dataset.pendingUpdate = "true";
+                checkUpdateBtn.textContent = '一键更新';
+                checkUpdateBtn.classList.add('shake');
+                checkUpdateBtn.disabled = false;
+                if (updateVersionText) {
+                    updateVersionText.textContent = `🚀 v${updateInfo.version} 发现新版本`;
+                    updateVersionText.style.color = '#3b82f6';
+                }
+            } else {
+                checkUpdateBtn.dataset.pendingUpdate = "false";
+                checkUpdateBtn.textContent = '当前已是最新';
+                checkUpdateBtn.disabled = true;
+                checkUpdateBtn.classList.remove('shake');
+                if (updateVersionText) {
+                    updateVersionText.textContent = `✅ v${updateInfo.version || '最新'} 当前已处于最新版`;
+                    updateVersionText.style.color = '#10b981'; // Green success variant
+                }
+                setTimeout(() => {
+                    checkUpdateBtn.textContent = originalText;
+                    checkUpdateBtn.disabled = false;
+                }, 3500);
+            }
+
             if (updateNotesContainer) {
-                updateNotesContainer.textContent = updateInfo.notes ? updateInfo.notes : '此次更新没有提供详细的更新日志。';
+                updateNotesContainer.textContent = updateInfo.notes ? updateInfo.notes : '服务器未提供额外的发版日志。';
             }
             if (inlineUpdateBox) inlineUpdateBox.classList.remove('view-hidden');
-        } else {
-            checkUpdateBtn.textContent = '已是最新版本';
-            setTimeout(() => {
-                checkUpdateBtn.textContent = originalText;
-                checkUpdateBtn.disabled = false;
-            }, 3000);
         }
       } catch (e) {
         if (settingsError) {
