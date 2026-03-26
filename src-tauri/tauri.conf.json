@@ -1,0 +1,76 @@
+{
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devPath": "../src",
+    "distDir": "../src",
+    "withGlobalTauri": true
+  },
+  "package": {
+    "productName": "中国矿业大学校园网自动登录",
+    "version": "1.10.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": true
+    },
+    "bundle": {
+      "active": true,
+      "category": "Utility",
+      "copyright": "",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": [
+        "icons/icon.ico"
+      ],
+      "identifier": "com.cumt.campuslogin",
+      "longDescription": "",
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
+      },
+      "resources": [],
+      "shortDescription": "",
+      "targets": [
+        "nsis"
+      ],
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "security": {
+      "csp": null
+    },
+    "updater": {
+      "active": true,
+      "dialog": false,
+      "endpoints": [
+        "https://gitee.com/huangyaowei2005/cumt_web_login/raw/master/updater.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUzNzc3RDNENUE3Q0Y2MzcKUldRMzlueGFQWDEzNHlRSGNTYUxRRWw5aWNTV2FKcVdGeGJIanQ5bEIxRHB3MjYwdHZrS0FMYmkK"
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 550,
+        "resizable": false,
+        "title": "中国矿业大学校园网自动登录",
+        "width": 400,
+        "transparent": true,
+        "decorations": false,
+        "visible": false
+      }
+    ],
+    "systemTray": {
+      "iconPath": "icons/icon.ico",
+      "iconAsTemplate": true
+    }
+  }
+}

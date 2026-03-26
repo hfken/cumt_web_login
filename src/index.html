@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>中国矿业大学校园网认证</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <div class="title-bar" data-tauri-drag-region>
+      <div class="drag-region" data-tauri-drag-region></div>
+      <div class="window-controls">
+        <button id="openSettingsBtn" class="win-btn" title="设置选项">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+        <button id="closeWindowBtn" class="win-btn" title="退出程序">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="header">
+      <div class="logo"></div>
+      <h1>中国矿业大学</h1>
+      <p>校园网快速认证系统</p>
+    </div>
+
+    <div id="loginView">
+    <div class="form-group">
+      <label for="studentId">学号 / 账号</label>
+      <input type="text" id="studentId" placeholder="请输入学号" autocomplete="off">
+    </div>
+
+    <div class="form-group">
+      <label for="password">密码</label>
+      <input type="password" id="password" placeholder="请输入密码">
+    </div>
+
+    <div class="form-group">
+      <label for="operator">运营商</label>
+      <select id="operator">
+        <option value="cmcc">中国移动</option>
+        <option value="telecom">中国电信</option>
+        <option value="unicom">中国联通</option>
+        <option value="none">纯校园网接入</option>
+      </select>
+    </div>
+
+    <div class="button-group">
+      <button id="checkBtn" class="secondary-btn">检测</button>
+      <button id="logoutBtn" class="secondary-btn">注销</button>
+      <button id="loginBtn" class="primary-btn">登录</button>
+    </div>
+    </div> <!-- END loginView -->
+
+    <div id="successView" class="view-hidden success-view">
+       <div class="success-icon-container" id="successIconBtn" title="一键下线">
+         <svg class="success-icon" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+         </svg>
+       </div>
+       <div class="success-title">已连接网络</div>
+       <div class="success-subtitle">认证畅通 · 点击绿标直接断开网络</div>
+       <button id="backToLoginBtn" class="secondary-btn" style="margin-top: 32px; width: 140px; padding: 10px; flex: none;">返回登录页</button>
+    </div>
+    
+    <div id="statusMessage" class="status-message">就绪</div>
+    
+    <div class="version-info">版本 v1.10 | 更新截至 2026/3/25</div>
+    <div class="version-info">
+      右上角设置内可开启开机自启动连接
+    </div>
+
+    <div class="footer">
+      如有问题请联系: <a href="mailto:hyw@cumtlab.tech" title="发邮件给开发者">hyw@cumtlab.tech</a>
+    </div>
+
+    <!-- Settings Overlay -->
+    <div id="settingsView" class="view-hidden overlay-view">
+      <div class="settings-header">
+        <h2>偏好设置</h2>
+      </div>
+      
+      <div class="settings-content">
+        <div class="form-checkbox" style="margin-bottom: 0;">
+          <input type="checkbox" id="autoLogin">
+          <label for="autoLogin">开机后台自动登录</label>
+        </div>
+        <p class="settings-desc">
+          勾选后，应用将安静地自动注册为 Windows 标准启动项。<br><br>
+          每次电脑开机时，它将在右下角系统托盘区免弹窗驻留，并全自动为你验证和接通中国矿业大学校园网。
+        </p>
+
+        <div class="form-checkbox" style="margin-top: 18px; margin-bottom: 0;">
+          <input type="checkbox" id="autoCheck" checked>
+          <label for="autoCheck">自动监控网络状态</label>
+        </div>
+        <p class="settings-desc">
+          勾选后，程序将在连网状态下持续监测网络；如果因意外或被其他设备挤下线，将自动弹回首页。
+        </p>
+
+        <div id="checkIntervalWrapper">
+          <div class="form-group" style="margin-top: 16px;">
+            <label for="checkInterval">监控检测频率 (秒)</label>
+            <input type="number" id="checkInterval" min="5" max="300" value="15" style="width: 100%;">
+          </div>
+          <p class="settings-desc" style="margin-top: 6px;">
+            程序多久自动向服务端检测登录状态。默认 15 秒，间隔设置得越短断线识别越快。
+          </p>
+        </div>
+        <div id="settingsError" class="view-hidden" style="color: #dc2626; font-size: 12px; margin-top: 14px; text-align: center; font-weight: 500;">
+          ⚠ 频率不得低于 5 秒
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 12px; margin-top: auto; flex: none;">
+        <button id="checkUpdateBtn" class="secondary-btn" style="flex: 1; padding: 12px 0;">检查更新</button>
+        <button id="closeSettingsBtn" class="primary-btn" style="flex: 2; padding: 12px 0;">保存并返回</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

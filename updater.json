@@ -1,0 +1,11 @@
+{
+  "version": "1.11.0",
+  "notes": "🚀 校园网自动登录 v1.11.0 更新啦！\n1. 加入了全自动静默检测更新引擎。\n2. 优化了 UI 阻尼动画与系统底层通知。\n3. 重构内核，提升了断线秒连速度。",
+  "pub_date": "2026-03-26T12:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "【必填】这里粘贴你打包后生成的 .msi.zip.sig 内的代码",
+      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/releases/download/v1.11.0/cumt_login_1.11.0_x64_en-US.msi.zip"
+    }
+  }
+}
