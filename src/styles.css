@@ -377,3 +377,97 @@ input:focus, select:focus {
   max-height: 0;
   opacity: 0;
 }
+
+/* Account conflict confirmation overlay */
+.confirm-user-tag {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 10px;
+  text-align: center;
+  word-break: break-all;
+}
+
+.confirm-danger-btn {
+  background: #dc2626;
+}
+
+.confirm-danger-btn:hover {
+  background: #b91c1c !important;
+}
+
+/* Update notification banner */
+@keyframes bannerSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bannerPulse {
+  0%,  100% { box-shadow: 0 4px 18px rgba(99, 102, 241, 0.45); }
+  50%       { box-shadow: 0 4px 28px rgba(99, 102, 241, 0.75); }
+}
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  border-radius: 12px;
+  padding: 10px 14px;
+  flex-shrink: 0;
+  animation: bannerSlideIn 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+             bannerPulse 2.5s ease-in-out 0.5s 4;
+  box-shadow: 0 4px 18px rgba(99, 102, 241, 0.45);
+}
+
+.update-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.update-banner-text {
+  min-width: 0;
+}
+
+.update-banner-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.update-banner-sub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.72);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.update-banner-btn {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.update-banner-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const successView = document.getElementById('successView');
   const successIconBtn = document.getElementById('successIconBtn');
   const settingsView = document.getElementById('settingsView');
+  const openSettingsBtn = document.getElementById('openSettingsBtn');
   const closeSettingsBtn = document.getElementById('closeSettingsBtn');
   const checkIntervalInput = document.getElementById('checkInterval');
   const checkIntervalWrapper = document.getElementById('checkIntervalWrapper');
@@ -36,6 +37,98 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let overrideSuccessView = false;
   let wasConnected = null;
+  let hasCheckedUpdates = false;
+  let pendingLoginConfig = null;
+
+  const confirmView = document.getElementById('confirmView');
+  const confirmOnlineUser = document.getElementById('confirmOnlineUser');
+  const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+  const confirmOkBtn = document.getElementById('confirmOkBtn');
+
+  const updateBanner = document.getElementById('updateBanner');
+  const updateBannerTitle = document.getElementById('updateBannerTitle');
+  const updateBannerSub = document.getElementById('updateBannerSub');
+  const updateBannerBtn = document.getElementById('updateBannerBtn');
+
+  function showUpdateBanner(version, notes) {
+    if (updateBannerTitle) updateBannerTitle.textContent = `发现新版本 v${version}`;
+    if (updateBannerSub && notes) {
+      const firstLine = notes.split('\n')[0];
+      updateBannerSub.textContent = firstLine.length > 28 ? firstLine.slice(0, 28) + '…' : firstLine;
+    }
+    if (updateBanner) updateBanner.classList.remove('view-hidden');
+
+    // Pre-populate the settings update UI so user can install immediately
+    if (updateVersionText) {
+      updateVersionText.textContent = `🚀 v${version} 发现新版本`;
+      updateVersionText.style.color = '#3b82f6';
+    }
+    if (updateNotesContainer) {
+      updateNotesContainer.textContent = notes || '服务器未提供额外的发版日志。';
+    }
+    if (inlineUpdateBox) inlineUpdateBox.classList.remove('view-hidden');
+    if (checkUpdateBtn) {
+      checkUpdateBtn.dataset.pendingUpdate = 'true';
+      checkUpdateBtn.textContent = '一键更新';
+      checkUpdateBtn.classList.add('shake');
+      checkUpdateBtn.disabled = false;
+    }
+  }
+
+  async function checkUpdateOnConnect() {
+    if (hasCheckedUpdates) return;
+    hasCheckedUpdates = true;
+    try {
+      const updateInfo = await invoke('check_for_updates');
+      if (updateInfo && updateInfo.available) {
+        showUpdateBanner(updateInfo.version, updateInfo.notes);
+      }
+    } catch (e) {
+      console.warn('Auto update check failed:', e);
+    }
+  }
+
+  if (updateBannerBtn) {
+    updateBannerBtn.addEventListener('click', () => {
+      if (updateBanner) updateBanner.classList.add('view-hidden');
+      if (settingsView) settingsView.classList.remove('view-hidden');
+    });
+  }
+
+  // Confirm overlay: cancel
+  if (confirmCancelBtn) {
+    confirmCancelBtn.addEventListener('click', () => {
+      pendingLoginConfig = null;
+      if (confirmView) confirmView.classList.add('view-hidden');
+      setStatus('已取消顶号操作', 'normal');
+    });
+  }
+
+  // Confirm overlay: proceed with force login
+  if (confirmOkBtn) {
+    confirmOkBtn.addEventListener('click', async () => {
+      if (!pendingLoginConfig) return;
+      const config = pendingLoginConfig;
+      pendingLoginConfig = null;
+      if (confirmView) confirmView.classList.add('view-hidden');
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = '正在连接...';
+      setStatus('正在顶替登录...', 'normal');
+      try {
+        const result = await invoke('do_login', { config, force: true });
+        setStatus(result.message, result.success ? 'success' : 'error');
+        if (result.success) {
+          overrideSuccessView = false;
+          showSuccessView();
+        }
+      } catch (e) {
+        setStatus(e, 'error');
+      }
+      loginBtn.disabled = false;
+      loginBtn.textContent = '登录网络';
+    });
+  }
 
   function setStatus(msg, type = 'normal') {
     statusMessage.textContent = msg;
@@ -47,6 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function showSuccessView() {
     if (loginView) loginView.classList.add('view-hidden');
     if (successView) successView.classList.remove('view-hidden');
+    checkUpdateOnConnect();
   }
 
   function showLoginView() {
@@ -329,11 +423,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const newConfig = { studentId, password, operator, autoLogin };
     try {
-        const result = await invoke('do_login', { config: newConfig });
-        setStatus(result.message, result.success ? 'success' : 'error');
-        if (result.success) {
-            overrideSuccessView = false;
-            showSuccessView();
+        const result = await invoke('do_login', { config: newConfig, force: false });
+        if (result.needsConfirm) {
+            setStatus('当前有其他账号在线，请确认是否顶号', 'error');
+            pendingLoginConfig = newConfig;
+            if (confirmOnlineUser) confirmOnlineUser.textContent = result.onlineUser || '未知账号';
+            if (confirmView) confirmView.classList.remove('view-hidden');
+        } else {
+            setStatus(result.message, result.success ? 'success' : 'error');
+            if (result.success) {
+                overrideSuccessView = false;
+                showSuccessView();
+            }
         }
     } catch(e) {
         setStatus(e, 'error');

@@ -1,10 +1,10 @@
 {
-  "version": "1.20.1",
-  "notes": "校园网自动登录 v1.20.1 更新啦！\n1. 修复了ui界面版本号显示 \n2. 修复了检测连接状态程序ui卡死的问题",
-  "pub_date": "2026-03-26T12:00:00Z",
+  "version": "1.20.2",
+  "notes": "校园网自动登录 v1.20.2 更新啦！\n1. 修复了ui界面版本号显示 \n2. 修复了检测连接状态程序ui卡死的问题\n3. 修复了开机自启动后自动登录实际未执行的问题（async future 未 await）\n4. 修复了系统托盘静默登录/注销实际未执行的问题\n5. 新增：连接成功后自动检查更新，发现新版本时以醒目横幅提示用户\n6. 新增：顶号保护——检测到当前在线账号与目标账号不一致时，弹出确认对话框，告知用户将要顶替的账号，用户确认后先注销当前账号再重新登录",
+  "pub_date": "2026-03-27T12:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDdNRUFLWUc2OUVzZ2VueGVXdFZUSENkQVRFVytqTERnZExaWnF6dS9QZHNNN1VSbXFRNDVCNWJpV1ZPUmdKUk1DTDBkR0ZNaEUzSUZIb2hBTTUwb2dFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NTQxMjEwCWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuMV94NjQtc2V0dXAubnNpcy56aXAKUXcyUElNOHhSWGtjc1BmcW1TZHVNYkdlQjBLZkRUeHBQSVdXVHFyTjUxN0JoMDRib25XYmFwU3F0YzFqS08wR2JUMmx0cVF4Z2JUR3l0ZFlJZTY4Q2c9PQo=",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDEwOHhCTWx6QkRNVWdXamMvNmhTUWwzZjhrL2xXVTlZeHp3a1UvRHFrcElMR3pNb3BXSnF6L0RGR2hZYVAxd3M3RlE4N3VlQm9mWFZHUUNPbGdUREFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NTg2OTc4CWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuMl94NjQtc2V0dXAubnNpcy56aXAKTFZqUFMxWFRlcFdIbGZFU3VyOWdwanZUTnk4USs3dDBndHMxMU1MNm9nRDhnNEQvQ3MxZ2xKYlluNDlrZFYwS040Z2dIeCtlSzE5YmFwTHJza01EREE9PQo=",
       "url": "https://gitee.com/huangyaowei2005/cumt_web_login/releases/download/1.20.1/%E4%B8%AD%E5%9B%BD%E7%9F%BF%E4%B8%9A%E5%A4%A7%E5%AD%A6%E6%A0%A1%E5%9B%AD%E7%BD%91%E8%87%AA%E5%8A%A8%E7%99%BB%E5%BD%95_1.20.1_x64-setup.nsis.zip"
     }
   }
