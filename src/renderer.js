@@ -333,8 +333,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   setStatus('正在检测网络状态...', 'normal');
   runBackgroundCheck();
-  
+
   startHeartbeat(config.checkInterval || 15, config.autoCheck !== false);
+
+  // When the window is brought to front (e.g. from tray), immediately re-check
+  // so the UI reflects the current login state without waiting for the next heartbeat.
+  appWindow.listen('tauri://focus', () => {
+    runBackgroundCheck();
+  }).catch(console.error);
 
   // Dynamic Version Injection
   const appVersionDisplay = document.getElementById('appVersionDisplay');
