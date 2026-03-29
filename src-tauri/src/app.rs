@@ -105,6 +105,7 @@ fn handle_tray_event(app: &tauri::AppHandle, event: SystemTrayEvent) {
 
 fn reveal_main_window<R: tauri::Runtime>(app: &impl Manager<R>) {
     if let Some(window) = app.get_window("main") {
+        let _ = window.center();
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
