@@ -1,11 +1,11 @@
 {
   "version": "1.20.4-beta.1",
-  "notes": "测试更新通道 beta v1.20.4-beta.1\n1. 这里用于给 beta 分支客户端下载测试更新\n2. 每次发布后请同步填写最新安装包 zip 的下载地址和签名\n3. 测试稳定后，再把对应变更合并到正式分支发布",
-  "pub_date": "2026-03-30T00:00:00Z",
+  "notes": "测试更新通道 beta 1.20.4-beta.1\n发布时间：2026-03-29T16:38:13Z\n本次构建由 scripts/publish-beta.ps1 自动发布。",
+  "pub_date": "2026-03-29T16:38:13Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "REPLACE_WITH_REAL_SIGNATURE",
-      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/releases/download/1.20.4-beta.1/%E4%B8%AD%E5%9B%BD%E7%9F%BF%E4%B8%9A%E5%A4%A7%E5%AD%A6%E6%A0%A1%E5%9B%AD%E7%BD%91%E8%87%AA%E5%8A%A8%E7%99%BB%E5%BD%95_1.20.4-beta.1_x64-setup.nsis.zip"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDRMb2oyMWUvYUhCcndCVWxYZzVJUXZtU2lyZVo5dUJyNVZvcHcvYXczcmV0L3NaNnpaclBtVm9rc2tZbjlWeG10czl5TlJTeVkxT2JRZGxkalh1cndBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0ODAyMjM5CWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuNC1iZXRhLjFfeDY0LXNldHVwLm5zaXMuemlwClc3ZWJBWDBBVjNzY0JKZDJaRzI1Y3lPRGxBQnN0dGZ6b1R6SlVRNjlHV3FiVHJZUWFqNW9MOHFWOGRNa2pvVU53cDdpUjZoTTkxbzNoVkJ5bTliVkRRPT0K",
+      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/raw/beta/beta-assets/CUMTLogin-beta-1.20.4-beta.1-x64-setup.nsis.zip"
     }
   }
 }
