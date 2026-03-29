@@ -2,6 +2,11 @@
 
 补充：如果只想先快速进入项目，不想读完整摘要，先看 `mem/quick.md`。
 
+## 协作约定
+
+- 每次修改代码、配置、文档或项目结构后，必须同步更新 `mem/project_memory.md`，必要时同时更新 `mem/quick.md`。
+- 如果只是很小的局部改动，`quick.md` 可以只补最快入口和最新变更，不必重复完整背景。
+
 ## 项目定位
 
 - 项目是一个面向中国矿业大学校园网认证的 Windows 桌面客户端。
@@ -16,7 +21,14 @@
   - `renderer.js`：前端全部交互逻辑，通过 `window.__TAURI__.tauri.invoke` 调 Rust 命令。
   - `styles.css`：整套界面样式，主色是 taupe 系暖灰，成功态和更新横幅有单独视觉效果。
 - `src-tauri/`
-  - `src/main.rs`：后端全部核心逻辑，项目最重要文件。
+  - `src/main.rs`：现在只保留后端入口，调用 `app::run()`。
+  - `src/app.rs`：Tauri 应用入口、单实例、系统托盘、窗口生命周期。
+  - `src/commands.rs`：统一暴露给前端的 Tauri commands。
+  - `src/models.rs`：共享数据结构，如 `Config`、`StatusResult`、`LoginResult`、`UpdateInfo`。
+  - `src/services/config.rs`：配置读写、配置路径、Windows 开机自启注册表同步。
+  - `src/services/portal.rs`：校园网状态检测、登录、注销、JSONP 解析、请求拼装。
+  - `src/services/system.rs`：系统通知、更新检查、安装更新、应用重启。
+  - `src/services/mod.rs`：服务模块声明。
   - `Cargo.toml`：Rust 依赖与版本。
   - `tauri.conf.json`：窗口、托盘、打包、updater 配置。
   - `build.rs`：标准 `tauri_build::build()`。
@@ -48,7 +60,7 @@
 
 ## 后端职责
 
-- `main.rs` 把所有逻辑都放在一个文件里，没有再拆模块。
+- 后端已从单文件重构为“入口 + 命令层 + 服务层 + 模型层”结构。
 - `Config` 字段：
   - `student_id`
   - `password`
@@ -56,25 +68,26 @@
   - `auto_login`
   - `check_interval`
   - `auto_check`
-- `get_config_path()` 优先使用 `directories::ProjectDirs` 的数据目录，回退到当前目录下 `config.json`。
-- `save_config()` 除了写配置，还会修改 Windows 注册表：
-  - 路径：`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
+- `models.rs` 里给 `Config` 增加了 `account()`，统一拼接运营商后缀账号。
+- `services/config.rs` 中：
+  - `get_config_path()` 优先使用 `directories::ProjectDirs` 的数据目录，回退到当前目录下 `config.json`。
+  - `save_config()` 除了写配置，还会修改 Windows 注册表。
+  - 注册表路径：`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
   - 键名：`CampusNetworkAutoLogin`
   - 启动参数：`"当前 exe 路径" --hidden`
-- `check_connection()` 请求校园网状态接口：
-  - `http://10.2.5.251/drcom/chkstatus?...`
+- `services/portal.rs` 中：
+  - `check_connection()` 请求校园网状态接口：`http://10.2.5.251/drcom/chkstatus?...`
   - 解析 JSONP 返回值，提取在线状态、UID、IP。
-- `do_login()` 请求认证接口：
-  - `http://10.2.5.251:801/eportal/?c=Portal&a=login...`
+  - `login()` 请求认证接口：`http://10.2.5.251:801/eportal/?c=Portal&a=login...`
   - 若当前已有其他账号在线且 `force=false`，返回 `needs_confirm=true`，前端展示顶号确认。
-  - 若 `force=true`，会先执行 `do_logout()` 再登录。
-- `do_logout()` 请求注销接口：
-  - `http://10.2.5.251:801/eportal/?c=Portal&a=logout...`
-- `notify_drop()` 通过系统通知提示断线。
-- 更新相关：
+  - 若 `force=true`，会先执行 `logout()` 再登录。
+  - `logout()` 请求注销接口：`http://10.2.5.251:801/eportal/?c=Portal&a=logout...`
+- `services/system.rs` 中：
+  - `notify_drop()` 通过系统通知提示断线。
   - `check_for_updates()` 使用 Tauri updater 检查版本。
   - `install_update()` 下载并安装更新。
   - `restart_app()` 重启应用。
+- `commands.rs` 只做 Tauri command 暴露和简单转发，不直接承载业务细节。
 
 ## Tauri 行为
 
@@ -142,16 +155,18 @@
 
 ## 容易踩坑的点
 
-- 当前 Rust 逻辑全部堆在 `src-tauri/src/main.rs`，后续改动容易产生耦合。
+- 虽然已经不再是单个 `main.rs`，但 `services/portal.rs` 仍然同时负责请求拼装、响应解析和登录流程控制，后续还可以继续细拆。
 - `Config` 存明文密码，属于本地明文持久化方案。
 - `check_connection()`、登录、注销接口都直接写死到校园网 IP，迁移性弱。
 - 前端按钮文案与初始化状态较多，改 UI 时要留意状态切换是否互相覆盖。
 - 版本号同时出现在 `package.json`、`Cargo.toml`、`tauri.conf.json`、`updater.json`，发布时容易不一致。
-- README 描述的部分能力都来自 `main.rs` 单文件实现，排查问题优先看那里。
+- 托盘静默登录和启动自动登录现在直接调用 `services::portal::login()`，如果以后要加日志、埋点或统一前后置动作，要优先检查这些入口是否保持一致。
 
 ## 后续协作时的最快入口
 
 - 改界面：先看 `src/index.html` + `src/styles.css` + `src/renderer.js`
-- 改登录/注销/检测：先看 `src-tauri/src/main.rs`
-- 改窗口/托盘/更新/打包：先看 `src-tauri/tauri.conf.json`
+- 改命令暴露：先看 `src-tauri/src/commands.rs`
+- 改登录/注销/检测：先看 `src-tauri/src/services/portal.rs`
+- 改配置持久化 / 开机自启：先看 `src-tauri/src/services/config.rs`
+- 改窗口/托盘/更新/打包：先看 `src-tauri/src/app.rs` + `src-tauri/src/services/system.rs` + `src-tauri/tauri.conf.json`
 - 改版本/发版：同时检查 `src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`、`updater.json`
