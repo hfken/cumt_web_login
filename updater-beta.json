@@ -1,7 +1,7 @@
 {
   "version": "1.20.4-beta.1",
-  "notes": "测试更新通道 beta 1.20.4-beta.1\n发布时间：2026-03-29T16:38:13Z\n本次构建由 scripts/publish-beta.ps1 自动发布。",
-  "pub_date": "2026-03-29T16:38:13Z",
+  "notes": "测试更新通道 beta 1.20.4-beta.1\n发布时间：2026-03-29T16:38:30Z\n本次构建由 scripts/publish-beta.ps1 自动发布。",
+  "pub_date": "2026-03-29T16:38:30Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDRMb2oyMWUvYUhCcndCVWxYZzVJUXZtU2lyZVo5dUJyNVZvcHcvYXczcmV0L3NaNnpaclBtVm9rc2tZbjlWeG10czl5TlJTeVkxT2JRZGxkalh1cndBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0ODAyMjM5CWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuNC1iZXRhLjFfeDY0LXNldHVwLm5zaXMuemlwClc3ZWJBWDBBVjNzY0JKZDJaRzI1Y3lPRGxBQnN0dGZ6b1R6SlVRNjlHV3FiVHJZUWFqNW9MOHFWOGRNa2pvVU53cDdpUjZoTTkxbzNoVkJ5bTliVkRRPT0K",
