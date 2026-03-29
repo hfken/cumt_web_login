@@ -339,12 +339,29 @@ input:focus, select:focus {
   flex: 1;
 }
 
+.settings-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--taupe-200);
+}
+
+.settings-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--taupe-700);
+  letter-spacing: 0.02em;
+}
+
 .settings-desc {
   font-size: 12px;
   color: var(--taupe-500);
   margin-top: 10px;
   line-height: 1.6;
   padding-left: 28px;
+}
+
+.settings-desc-compact {
+  padding-left: 0;
 }
 
 .mt-auto {

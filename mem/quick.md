@@ -12,7 +12,7 @@
 - `src-tauri/src/commands.rs`：前端 `invoke` 命令出口。
 - `src-tauri/src/models.rs`：共享数据结构。
 - `src-tauri/src/services/config.rs`：配置读写、配置路径、注册表自启。
-- `src-tauri/src/services/portal.rs`：校园网检测、登录、注销。
+- `src-tauri/src/services/portal.rs`：校园网检测、登录、注销，以及自定义校园网登录地址解析。
 - `src-tauri/src/services/system.rs`：通知、更新、重启。
 
 ## 改动入口速查
@@ -21,9 +21,10 @@
 - 改配置和开机自启：看 `src-tauri/src/services/config.rs`
 - 改 Tauri 托盘、窗口、启动流程：看 `src-tauri/src/app.rs`
 - 改前端调用的命令名或参数：看 `src-tauri/src/commands.rs`
+- 改设置页里的高级设置和地址输入：看 `src/index.html` + `src/renderer.js`
 
 ## 当前提醒
 
 - `services/portal.rs` 仍然偏重，后续可以继续拆成 API 请求层和登录流程层。
-- 校园网接口地址仍然写死在 Rust 后端。
+- 默认校园网接口地址仍然在 Rust 后端兜底，但现在可由设置页里的 `portalAddress` 覆盖。
 - 本地配置仍然明文保存密码。

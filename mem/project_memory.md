@@ -65,6 +65,7 @@
   - `student_id`
   - `password`
   - `operator`
+  - `portal_address`
   - `auto_login`
   - `check_interval`
   - `auto_check`
@@ -78,6 +79,8 @@
 - `services/portal.rs` 中：
   - `check_connection()` 请求校园网状态接口：`http://10.2.5.251/drcom/chkstatus?...`
   - 解析 JSONP 返回值，提取在线状态、UID、IP。
+  - 会优先读取配置中的 `portal_address`，留空时才回退默认校园网地址。
+  - `portal_address` 支持用户输入主机、带协议的地址或显式端口，例如 `10.2.5.251`、`http://10.2.5.251`、`http://10.2.5.251:801`。
   - `login()` 请求认证接口：`http://10.2.5.251:801/eportal/?c=Portal&a=login...`
   - 若当前已有其他账号在线且 `force=false`，返回 `needs_confirm=true`，前端展示顶号确认。
   - 若 `force=true`，会先执行 `logout()` 再登录。
@@ -135,6 +138,7 @@
   - 开机后台自动登录
   - 自动监控网络状态
   - 检测频率
+  - 高级设置中的“校园网登录地址”输入框，留空时使用默认地址
   - 检查更新 / 一键更新
 - 还有两个覆盖层：
   - 顶号确认层
@@ -157,7 +161,7 @@
 
 - 虽然已经不再是单个 `main.rs`，但 `services/portal.rs` 仍然同时负责请求拼装、响应解析和登录流程控制，后续还可以继续细拆。
 - `Config` 存明文密码，属于本地明文持久化方案。
-- `check_connection()`、登录、注销接口都直接写死到校园网 IP，迁移性弱。
+- 默认校园网地址仍然内置在 Rust 后端，只是现在允许用户通过设置页覆盖。
 - 前端按钮文案与初始化状态较多，改 UI 时要留意状态切换是否互相覆盖。
 - 版本号同时出现在 `package.json`、`Cargo.toml`、`tauri.conf.json`、`updater.json`，发布时容易不一致。
 - 托盘静默登录和启动自动登录现在直接调用 `services::portal::login()`，如果以后要加日志、埋点或统一前后置动作，要优先检查这些入口是否保持一致。

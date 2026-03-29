@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const checkIntervalInput = document.getElementById('checkInterval');
   const checkIntervalWrapper = document.getElementById('checkIntervalWrapper');
   const autoCheckInput = document.getElementById('autoCheck');
+  const portalAddressInput = document.getElementById('portalAddress');
   const backToLoginBtn = document.getElementById('backToLoginBtn');
   const checkUpdateBtn = document.getElementById('checkUpdateBtn');
   const settingsError = document.getElementById('settingsError');
@@ -194,6 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         studentId: studentIdInput.value.trim(),
         password: passwordInput.value,
         operator: operatorSelect.value,
+        portalAddress: portalAddressInput ? portalAddressInput.value.trim() : '',
         autoLogin: autoLoginCheck.checked,
         checkInterval: intervalVal,
         autoCheck: isAutoCheck
@@ -282,12 +284,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Load Config
-  let config = { studentId: '', password: '', operator: 'cmcc', autoLogin: false, checkInterval: 15, autoCheck: true };
+  let config = { studentId: '', password: '', operator: 'cmcc', portalAddress: '', autoLogin: false, checkInterval: 15, autoCheck: true };
   try {
     config = await invoke('get_config');
     studentIdInput.value = config.studentId || '';
     passwordInput.value = config.password || '';
     operatorSelect.value = config.operator || 'cmcc';
+    if (portalAddressInput) portalAddressInput.value = config.portalAddress || '';
     autoLoginCheck.checked = config.autoLogin || false;
     if (autoCheckInput) autoCheckInput.checked = config.autoCheck !== false;
     if (checkIntervalInput) checkIntervalInput.value = config.checkInterval || 15;
@@ -416,6 +419,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const studentId = studentIdInput.value.trim();
     const password = passwordInput.value;
     const operator = operatorSelect.value;
+    const portalAddress = portalAddressInput ? portalAddressInput.value.trim() : '';
     const autoLogin = autoLoginCheck.checked;
 
     if (!studentId || !password) {
@@ -427,7 +431,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     loginBtn.textContent = '正在连接...';
     setStatus('正在探测与登录...', 'normal');
 
-    const newConfig = { studentId, password, operator, autoLogin };
+    const newConfig = {
+      studentId,
+      password,
+      operator,
+      portalAddress,
+      autoLogin,
+      checkInterval: parseInt(checkIntervalInput.value, 10) || 15,
+      autoCheck: autoCheckInput ? autoCheckInput.checked : true
+    };
     try {
         const result = await invoke('do_login', { config: newConfig, force: false });
         if (result.needsConfirm) {

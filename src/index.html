@@ -167,6 +167,18 @@
             程序多久自动向服务端检测登录状态。默认 15 秒，间隔设置得越短断线识别越快。
           </p>
         </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">高级设置</div>
+          <div class="form-group" style="margin-top: 12px;">
+            <label for="portalAddress">校园网登录地址</label>
+            <input type="text" id="portalAddress" placeholder="留空则使用默认地址 10.2.5.251">
+          </div>
+          <p class="settings-desc settings-desc-compact">
+            当学校更换认证网关地址时，可在这里覆盖默认地址。支持填写 `10.2.5.251`、`http://10.2.5.251` 或 `http://10.2.5.251:801`。
+          </p>
+        </div>
+
         <div id="settingsError" class="view-hidden"
           style="color: #dc2626; font-size: 12px; margin-top: 14px; text-align: center; font-weight: 500;">
           ⚠ 频率不得低于 5 秒
