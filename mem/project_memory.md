@@ -20,7 +20,7 @@
   - `index.html`：唯一页面，包含登录页、成功页、设置页、顶号确认层、更新横幅。
   - `renderer.js`：前端全部交互逻辑，通过 `window.__TAURI__.tauri.invoke` 调 Rust 命令。
   - `styles.css`：整套界面样式，主色是 taupe 系暖灰，成功态和更新横幅有单独视觉效果。
-  - `update-log.html` / `update-log.css` / `update-log.js`：独立的更新日志子窗口，显示本次检查结果、发版说明，并在有新版本时直接执行更新。
+  - `update-log.html` / `update-log.css` / `update-log.js`：独立的更新日志子窗口，显示本次检查结果、发版说明，并在有新版本时直接执行更新；当前视觉为纯边框卡片，不再额外加投影阴影。
 - `src-tauri/`
   - `src/main.rs`：现在只保留后端入口，调用 `app::run()`。
   - `src/app.rs`：Tauri 应用入口、单实例、系统托盘、窗口生命周期。
@@ -56,6 +56,8 @@
   - `do_login`
   - `do_logout`
   - `notify_drop`
+  - `notify_update_available`
+  - `check_internet_access`
   - `check_for_updates`
   - `install_update`
   - `get_beta_installer_info`
@@ -91,6 +93,8 @@
   - `logout()` 请求注销接口：`http://10.2.5.251:801/eportal/?c=Portal&a=logout...`
 - `services/system.rs` 中：
   - `notify_drop()` 通过系统通知提示断线。
+  - `notify_update_available()` 在自动检测到新版本时发送系统通知，提示用户打开主窗口查看更新日志。
+  - `check_internet_access()` 通过后端 `reqwest` 访问公网探测地址，判断当前是否具备互联网访问能力。
   - `check_for_updates()` 使用 Tauri updater 检查版本。
   - `install_update()` 下载并安装更新。
   - `get_beta_installer_info()` 由 Rust 后端通过 `reqwest` 拉取 beta 通道的 `updater-beta.json`，解析 `windows-x86_64` 更新包地址。
@@ -146,7 +150,7 @@
   - 自动监控网络状态
   - 检测频率
   - 高级设置中的“校园网登录地址”输入框，留空时使用默认地址
-  - 检查更新 / 一键更新
+  - “检查更新”按钮固定作为进入更新日志子窗口的入口，按钮文案不再切换为“一键更新”
   - 主分支设置页额外提供“安装测试版”按钮；点击后会调用 Rust command `install_beta_update`，由后端下载并启动 beta 安装器
 - 还有两个覆盖层：
   - 顶号确认层
@@ -162,7 +166,9 @@
   - `setInterval(runBackgroundCheck, interval)`。
   - 从在线变离线时触发 `notify_drop()` 并切回登录页。
 - 更新流程：
-  - 连接成功后会自动调用一次 `check_for_updates()`。
+  - 自动更新检查不再以“是否成功连接校园网”为前提，而是以 `check_internet_access()` 的结果作为标准；只要当前能访问互联网，即使还停留在登录页，也会继续尝试检查更新。
+  - 若自动检查因网络、签名或公网暂不可达而失败，后续后台检测、窗口重新聚焦或再次进入成功页时仍会重试，不会因一次失败永久跳过。
+  - 自动检查发现新版本时，除了显示主窗口横幅，还会发一条系统通知。
   - 设置页手动检查后会弹出 `update-log` 子窗口；若发现新版本，窗口底部按钮会变成“立即更新”，并可直接调用 `install_update()`。
   - 顶部更新横幅点击后也会打开同一份更新日志子窗口，同时把设置页带到前台。
 

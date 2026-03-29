@@ -35,8 +35,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   let overrideSuccessView = false;
   let wasConnected = null;
   let hasCheckedUpdates = false;
+  let isCheckingUpdates = false;
   let pendingLoginConfig = null;
   let lastUpdateInfo = null;
+  let notifiedUpdateVersion = null;
 
   const confirmView = document.getElementById('confirmView');
   const confirmOnlineUser = document.getElementById('confirmOnlineUser');
@@ -98,24 +100,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateBannerSub.textContent = firstLine.length > 28 ? firstLine.slice(0, 28) + '…' : firstLine;
     }
     if (updateBanner) updateBanner.classList.remove('view-hidden');
-    if (checkUpdateBtn) {
-      checkUpdateBtn.dataset.pendingUpdate = 'true';
-      checkUpdateBtn.textContent = '一键更新';
-      checkUpdateBtn.classList.add('shake');
-      checkUpdateBtn.disabled = false;
-    }
   }
 
   async function checkUpdateOnConnect() {
-    if (hasCheckedUpdates) return;
-    hasCheckedUpdates = true;
+    if (hasCheckedUpdates || isCheckingUpdates) return;
+    isCheckingUpdates = true;
     try {
+      const hasInternetAccess = await invoke('check_internet_access');
+      if (!hasInternetAccess) {
+        return;
+      }
+
       const updateInfo = await invoke('check_for_updates');
+      hasCheckedUpdates = true;
       if (updateInfo && updateInfo.available) {
         showUpdateBanner(updateInfo.version, updateInfo.notes);
+        if (updateInfo.version && notifiedUpdateVersion !== updateInfo.version) {
+          notifiedUpdateVersion = updateInfo.version;
+          invoke('notify_update_available', { version: updateInfo.version }).catch(console.error);
+        }
       }
     } catch (e) {
       console.warn('Auto update check failed:', e);
+    } finally {
+      isCheckingUpdates = false;
     }
   }
 
@@ -275,27 +283,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check Updates Logic
   if (checkUpdateBtn) {
     checkUpdateBtn.addEventListener('click', async () => {
-      if (checkUpdateBtn.dataset.pendingUpdate === "true") {
-          checkUpdateBtn.textContent = '下载网络包...';
-          checkUpdateBtn.disabled = true;
-          try {
-              await invoke('install_update');
-              checkUpdateBtn.textContent = '成功！重启中...';
-              setTimeout(() => invoke('restart_app').catch(console.error), 800);
-          } catch(e) {
-              if (settingsError) {
-                  settingsError.style.color = '#dc2626';
-                  settingsError.textContent = "更新安装失败: " + e;
-                  settingsError.classList.remove('view-hidden');
-              }
-              checkUpdateBtn.textContent = '一键更新';
-              checkUpdateBtn.disabled = false;
-          }
-          return;
-      }
-
-      const originalText = '检查更新';
-      checkUpdateBtn.textContent = '检查中...';
       checkUpdateBtn.disabled = true;
       if (settingsError) {
         settingsError.style.color = '#dc2626';
@@ -307,21 +294,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (updateInfo) {
             lastUpdateInfo = updateInfo;
             openUpdateLogWindow(updateInfo);
-            if (updateInfo.available) {
-                checkUpdateBtn.dataset.pendingUpdate = "true";
-                checkUpdateBtn.textContent = '一键更新';
-                checkUpdateBtn.classList.add('shake');
-                checkUpdateBtn.disabled = false;
-            } else {
-                checkUpdateBtn.dataset.pendingUpdate = "false";
-                checkUpdateBtn.textContent = '当前已是最新';
-                checkUpdateBtn.disabled = true;
-                checkUpdateBtn.classList.remove('shake');
-                setTimeout(() => {
-                    checkUpdateBtn.textContent = originalText;
-                    checkUpdateBtn.disabled = false;
-                }, 3500);
-            }
         }
       } catch (e) {
         if (settingsError) {
@@ -329,15 +301,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             settingsError.textContent = '网络不通，或你尚未为此版本生成安全签名。\n底层截获: ' + e;
             settingsError.classList.remove('view-hidden');
         }
-        checkUpdateBtn.textContent = '网络/签名故障';
-        setTimeout(() => {
-            checkUpdateBtn.textContent = originalText;
-            checkUpdateBtn.disabled = false;
-            if (settingsError && settingsError.textContent.includes('网络不通')) {
-                 settingsError.classList.add('view-hidden');
-            }
-        }, 8000);
         console.error(e);
+      } finally {
+        checkUpdateBtn.disabled = false;
       }
     });
   }
@@ -382,6 +348,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {
       console.error('Background check error:', e);
     }
+
+    await checkUpdateOnConnect();
   }
 
   let heartbeatInterval = null;
