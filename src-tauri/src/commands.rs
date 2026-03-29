@@ -36,6 +36,16 @@ pub fn notify_drop(app_handle: tauri::AppHandle) {
 }
 
 #[tauri::command]
+pub fn notify_update_available(app_handle: tauri::AppHandle, version: String) {
+    system::notify_update_available(app_handle, &version);
+}
+
+#[tauri::command]
+pub async fn check_internet_access() -> bool {
+    system::check_internet_access().await
+}
+
+#[tauri::command]
 pub async fn check_for_updates(app_handle: tauri::AppHandle) -> Result<UpdateInfo, String> {
     system::check_for_updates(app_handle).await
 }

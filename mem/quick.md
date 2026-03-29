@@ -14,7 +14,7 @@
 - `src-tauri/src/services/config.rs`：配置读写、配置路径、注册表自启。
 - `src-tauri/src/services/portal.rs`：校园网检测、登录、注销，以及自定义校园网登录地址解析。
 - `src-tauri/src/services/system.rs`：通知、更新、重启。
-- `src/update-log.html` + `src/update-log.css` + `src/update-log.js`：独立更新日志窗口，当前是主程序同款无边框、自绘关闭按钮、始终置顶、固定宽度方案；自适应高度以 `.window-frame` 为基准，但视觉上只显示内部 `.window-card` 单层边框。
+- `src/update-log.html` + `src/update-log.css` + `src/update-log.js`：独立更新日志窗口，当前是主程序同款无边框、自绘关闭按钮、始终置顶、固定宽度方案；自适应高度以 `.window-frame` 为基准，视觉上为纯边框卡片，无额外投影阴影。
 - `updater-beta.json`：beta 分支专用更新元数据模板；beta 客户端应指向它，不走正式 `updater.json`。
 
 ## 改动入口速查
@@ -24,8 +24,9 @@
 - 改 Tauri 托盘、窗口、启动流程：看 `src-tauri/src/app.rs`
 - 主窗口显示位置统一在 `src-tauri/src/app.rs` 的 `reveal_main_window()` 控制，当前会先 `center()` 再显示
 - 改前端调用的命令名或参数：看 `src-tauri/src/commands.rs`
+- 自动更新检查的重试、互联网可达性判断与新版本通知入口：看 `src/renderer.js` 的 `checkUpdateOnConnect()`，以及 `src-tauri/src/commands.rs` / `src-tauri/src/services/system.rs` 里的 `check_internet_access()`、`notify_update_available()`
 - 改设置页里的高级设置和地址输入：看 `src/index.html` + `src/renderer.js`
-- 改“检查更新”后的独立日志窗口：看 `src/renderer.js` + `src/update-log.html` + `src/update-log.js`
+- 改“检查更新”后的独立日志窗口：看 `src/renderer.js` + `src/update-log.html` + `src/update-log.js`；设置页“检查更新”按钮现在只负责进入这条流程
 
 ## 当前提醒
 
@@ -38,5 +39,4 @@
 - 更新日志子窗口已禁用右键和文本选择；相关入口在 `src/update-log.css` 和 `src/update-log.js`。
 - 更新日志子窗口底部按钮已接入更新流程：有新版本时直接“立即更新”，内部调用 `install_update`，完成后自动 `restart_app`；无新版本时仍然只是关闭窗口。
 - `commands.rs` 里的 `config_value` 参数在前端必须传成 `configValue`；当前登录和保存配置都已按这个名字修正，若再见到 `missing required key configValue`，优先检查 `src/renderer.js`。
-- 设置页关闭时不再清空“已有更新待安装”的按钮状态；若又出现“检查到更新但一关设置页就丢失”的问题，优先检查 `src/renderer.js` 的 `closeSettingsBtn` 逻辑。
 - `beta` 分支当前测试版本已切到 `1.20.4-beta.1`，updater endpoint 已改为 `raw/beta/updater-beta.json`；发首个测试更新前，只需要把 `updater-beta.json` 里的 `url` 和 `signature` 换成真实值。

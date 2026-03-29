@@ -44,7 +44,6 @@ body {
   border-radius: 24px;
   background: var(--taupe-50);
   border: 1px solid var(--taupe-200);
-  box-shadow: 0 18px 40px rgba(74, 56, 38, 0.14);
   display: flex;
   flex-direction: column;
   overflow: hidden;

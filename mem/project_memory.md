@@ -20,7 +20,7 @@
   - `index.html`：唯一页面，包含登录页、成功页、设置页、顶号确认层、更新横幅。
   - `renderer.js`：前端全部交互逻辑，通过 `window.__TAURI__.tauri.invoke` 调 Rust 命令。
   - `styles.css`：整套界面样式，主色是 taupe 系暖灰，成功态和更新横幅有单独视觉效果。
-  - `update-log.html` / `update-log.css` / `update-log.js`：独立的更新日志窗口页面，用于单独展示版本说明，样式与主程序保持一致。
+  - `update-log.html` / `update-log.css` / `update-log.js`：独立的更新日志窗口页面，用于单独展示版本说明，样式与主程序保持一致；当前视觉为纯边框卡片，不再额外加投影阴影。
 - `src-tauri/`
   - `src/main.rs`：现在只保留后端入口，调用 `app::run()`。
   - `src/app.rs`：Tauri 应用入口、单实例、系统托盘、窗口生命周期。
@@ -57,6 +57,8 @@
   - `do_login`
   - `do_logout`
   - `notify_drop`
+  - `notify_update_available`
+  - `check_internet_access`
   - `check_for_updates`
   - `install_update`
   - `restart_app`
@@ -92,6 +94,8 @@
   - `logout()` 请求注销接口：`http://10.2.5.251:801/eportal/?c=Portal&a=logout...`
 - `services/system.rs` 中：
   - `notify_drop()` 通过系统通知提示断线。
+  - `notify_update_available()` 在自动检测到新版本时发送系统通知，提示用户打开主窗口查看更新日志。
+  - `check_internet_access()` 通过后端 `reqwest` 访问公网探测地址，判断当前是否具备互联网访问能力。
   - `check_for_updates()` 使用 Tauri updater 检查版本。
   - `install_update()` 下载并安装更新。
   - `restart_app()` 重启应用。
@@ -146,7 +150,7 @@
   - 自动监控网络状态
   - 检测频率
   - 高级设置中的“校园网登录地址”输入框，留空时使用默认地址
-  - 检查更新 / 一键更新
+  - “检查更新”按钮固定作为进入更新日志子窗口的入口，按钮文案不再切换为“一键更新”
   - 点击“检查更新”后，版本更新日志会在独立新窗口中展示
   - 更新日志窗口是无原生边框、自绘关闭按钮、始终置顶、固定宽度且不可拉伸的紧凑小弹层
   - 更新说明面板底部额外留白，避免说明方框边线贴住窗口边界
@@ -168,12 +172,12 @@
   - `setInterval(runBackgroundCheck, interval)`。
   - 从在线变离线时触发 `notify_drop()` 并切回登录页。
 - 更新流程：
-  - 连接成功后会自动调用一次 `check_for_updates()`。
-  - 设置页也可手动检查，若发现新版本则按钮变成“一键更新”。
+  - 自动更新检查不再以“是否成功连接校园网”为前提，而是以 `check_internet_access()` 的结果作为标准；只要当前能访问互联网，即使还停留在登录页，也会继续尝试检查更新。
+  - 若自动检查因网络、签名或公网暂不可达而失败，后续后台检测、窗口重新聚焦或再次进入成功页时仍会重试，不会因一次失败永久跳过。
+  - 自动检查发现新版本时，除了显示主窗口横幅，还会发一条系统通知。
   - 手动检查更新后，版本说明会在独立的更新日志窗口中显示，而不是内嵌在设置页里。
   - 更新日志窗口会按内容自动计算高度，尽量在首次打开时直接显示完整内容，并保持始终置顶。
   - 更新日志窗口高度上限不再参考初始窗口高度，而是参考屏幕可用高度；初始创建高度和最小高度统一为 `420`，减少首次渲染时自绘边框和底部按钮被裁掉的问题。
-  - 设置页关闭时不再重置 `checkUpdateBtn.dataset.pendingUpdate`，避免用户已经检测到新版本后，仅仅关闭设置页就丢失“一键更新”状态。
 
 ## 容易踩坑的点
 

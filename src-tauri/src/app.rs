@@ -23,6 +23,8 @@ pub fn run() {
             crate::commands::do_login,
             crate::commands::do_logout,
             crate::commands::notify_drop,
+            crate::commands::notify_update_available,
+            crate::commands::check_internet_access,
             crate::commands::check_for_updates,
             crate::commands::install_update,
             crate::commands::restart_app
