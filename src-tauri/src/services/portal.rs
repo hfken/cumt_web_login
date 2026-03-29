@@ -267,7 +267,11 @@ fn resolve_endpoints(config: &Config) -> PortalEndpoints {
     if let Ok(url) = reqwest::Url::parse(&candidate) {
         if let Some(host) = url.host_str() {
             let scheme = url.scheme();
-            let status_origin = format!("{}://{}", scheme, host);
+            let status_origin = if let Some(port) = url.port() {
+                format!("{}://{}:{}", scheme, host, port)
+            } else {
+                format!("{}://{}", scheme, host)
+            };
             let portal_origin = if let Some(port) = url.port() {
                 format!("{}://{}:{}", scheme, host, port)
             } else {

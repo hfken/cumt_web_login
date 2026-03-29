@@ -14,6 +14,8 @@
 - `src-tauri/src/services/config.rs`：配置读写、配置路径、注册表自启。
 - `src-tauri/src/services/portal.rs`：校园网检测、登录、注销，以及自定义校园网登录地址解析。
 - `src-tauri/src/services/system.rs`：通知、更新、重启。
+- `src/update-log.html` + `src/update-log.css` + `src/update-log.js`：独立更新日志窗口，当前是主程序同款无边框、自绘关闭按钮、始终置顶、固定宽度方案；自适应高度以 `.window-frame` 为基准，但视觉上只显示内部 `.window-card` 单层边框。
+- `updater-beta.json`：beta 分支专用更新元数据模板；beta 客户端应指向它，不走正式 `updater.json`。
 
 ## 改动入口速查
 
@@ -22,9 +24,18 @@
 - 改 Tauri 托盘、窗口、启动流程：看 `src-tauri/src/app.rs`
 - 改前端调用的命令名或参数：看 `src-tauri/src/commands.rs`
 - 改设置页里的高级设置和地址输入：看 `src/index.html` + `src/renderer.js`
+- 改“检查更新”后的独立日志窗口：看 `src/renderer.js` + `src/update-log.html` + `src/update-log.js`
 
 ## 当前提醒
 
 - `services/portal.rs` 仍然偏重，后续可以继续拆成 API 请求层和登录流程层。
 - 默认校园网接口地址仍然在 Rust 后端兜底，但现在可由设置页里的 `portalAddress` 覆盖。
+- 自定义 `portalAddress` 如果带端口，`src-tauri/src/services/portal.rs` 里的状态检测也会使用同一端口；若以后再改地址解析，别只修登录/注销接口。
 - 本地配置仍然明文保存密码。
+- 更新日志窗口现在不可拉伸，按自然内容高度优先适配；如果内容过长超出屏幕，再退化为说明区内部滚动，但底部按钮必须始终可见。
+- 更新日志窗口的高度上限已改为参考屏幕可用高度，不再吃初始 `360px` 窗口高；若再次出现裁边，优先检查 `src/update-log.css` 的 `.window-frame` 和 `src/update-log.js` 的 `autoFitWindow()`。
+- 更新日志子窗口已禁用右键和文本选择；相关入口在 `src/update-log.css` 和 `src/update-log.js`。
+- 更新日志子窗口底部按钮已接入更新流程：有新版本时直接“立即更新”，内部调用 `install_update`，完成后自动 `restart_app`；无新版本时仍然只是关闭窗口。
+- `commands.rs` 里的 `config_value` 参数在前端必须传成 `configValue`；当前登录和保存配置都已按这个名字修正，若再见到 `missing required key configValue`，优先检查 `src/renderer.js`。
+- 设置页关闭时不再清空“已有更新待安装”的按钮状态；若又出现“检查到更新但一关设置页就丢失”的问题，优先检查 `src/renderer.js` 的 `closeSettingsBtn` 逻辑。
+- `beta` 分支当前测试版本已切到 `1.20.4-beta.1`，updater endpoint 已改为 `raw/beta/updater-beta.json`；发首个测试更新前，只需要把 `updater-beta.json` 里的 `url` 和 `signature` 换成真实值。
