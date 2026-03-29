@@ -1,11 +1,11 @@
 {
-  "version": "1.20.2",
-  "notes": "校园网自动登录 v1.20.2 更新内容：\n1. 修复：开机自启动后自动登录实际未执行\n2. 修复：系统托盘静默登录 / 注销实际未执行\n3. 修复：从托盘唤起窗口时不能立即跳转已连接页面，需等待下次心跳\n4. 新增：连接成功后自动检查更新，有新版本时显示醒目横幅\n5. 新增：顶号保护 —— 检测到其他账号在线时弹出确认框，确认后先注销再登录",
+  "version": "1.20.3",
+  "notes": "校园网自动登录 v1.20.3 更新内容：\n1. 新增：检查更新后弹出独立更新日志窗口，集中展示版本说明、检查结果与检查时间\n2. 新增：更新日志窗口支持在发现新版本时直接“立即更新”，已是最新时则可直接关闭\n3. 新增：设置页加入“安装测试版”入口，可直接下载并启动 beta 安装程序\n4. 优化：主窗口在正常启动、托盘唤起和重复打开时都会自动居中显示\n5. 优化：更新入口交互更统一，更新说明改为独立窗口展示，不再依赖设置页内嵌说明块",
   "pub_date": "2026-03-27T12:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNC9BVDN3ZTJOM3JzcmVya0pDVHIzVnZzb1FVQTVXTy9RUW96R3AwdUhOUHdzZWI5Z3FWT1Z3ODJyZUJlbjgxbTNteXVuSHB0bC9yRE5HaUp5bGJkQndnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NTkwMTgwCWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuMl94NjQtc2V0dXAubnNpcy56aXAKWHllVjV1M2pNN2M4UXJHYzZkNUNLRitwVGJZVktBc05MSXBKRlgwa3VMNllkZkdQY2tCYk1Qcjl1WGZDRTRsTkpRQkRiYUk4Z1ErbjRvcmY1NWt6RGc9PQo=",
-      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/releases/download/1.20.2/%E4%B8%AD%E5%9B%BD%E7%9F%BF%E4%B8%9A%E5%A4%A7%E5%AD%A6%E6%A0%A1%E5%9B%AD%E7%BD%91%E8%87%AA%E5%8A%A8%E7%99%BB%E5%BD%95_1.20.2_x64-setup.nsis.zip"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNCticS9DWHhWTkpUbVFWM25VanFmeHJIbkJGWUJHejJPN0w4Y1RzVElWSDd4dG1mUEo3bTROT295ek13U0hJMWRHNHZ4anFBUEsxcS9XWWNWd3B4V0FnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0ODA0OTY4CWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuM194NjQtc2V0dXAubnNpcy56aXAKc2N2Y2U5bHZpK1p0R1MzaWtGaHIvSVg1RnR6ZFNmZ0dkaXM4WUh5T3M4NmtqaFlKc0hwdm9kNEJOTlYzODc3OUpHdUxZNDREaEFET05HZG85cUwyQ3c9PQo=",
+      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/releases/download/1.20.2/%E4%B8%AD%E5%9B%BD%E7%9F%BF%E4%B8%9A%E5%A4%A7%E5%AD%A6%E6%A0%A1%E5%9B%AD%E7%BD%91%E8%87%AA%E5%8A%A8%E7%99%BB%E5%BD%95_1.20.3_x64-setup.nsis.zip"
     }
   }
 }

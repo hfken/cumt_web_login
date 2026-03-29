@@ -121,8 +121,8 @@
 ## 版本与运行
 
 - `package.json` 很薄，只保留 `tauri` script。
-- JS 侧版本是 `1.10`，Rust/Tauri 包版本是 `1.20.2`。
-- 真实产品版本以 `src-tauri/Cargo.toml` 和 `src-tauri/tauri.conf.json` 为准，当前二者一致为 `1.20.2`。
+- JS 侧版本是 `1.10`，Rust/Tauri 包版本是 `1.20.3`。
+- 真实产品版本以 `src-tauri/Cargo.toml` 和 `src-tauri/tauri.conf.json` 为准，当前二者一致为 `1.20.3`。
 - 开发命令：
   - `npm install`
   - `npm run tauri dev`
