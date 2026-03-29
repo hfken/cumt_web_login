@@ -1,5 +1,5 @@
 const { invoke } = window.__TAURI__.tauri;
-const { appWindow } = window.__TAURI__.window;
+const { appWindow, WebviewWindow } = window.__TAURI__.window;
 document.addEventListener('contextmenu', e => {
   if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
     e.preventDefault();
@@ -32,14 +32,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const installBetaBtn = document.getElementById('installBetaBtn');
   const settingsError = document.getElementById('settingsError');
 
-  const inlineUpdateBox = document.getElementById('inlineUpdateBox');
-  const updateVersionText = document.getElementById('updateVersionText');
-  const updateNotesContainer = document.getElementById('updateNotesContainer');
-
   let overrideSuccessView = false;
   let wasConnected = null;
   let hasCheckedUpdates = false;
   let pendingLoginConfig = null;
+  let lastUpdateInfo = null;
 
   const confirmView = document.getElementById('confirmView');
   const confirmOnlineUser = document.getElementById('confirmOnlineUser');
@@ -51,23 +48,56 @@ document.addEventListener('DOMContentLoaded', async () => {
   const updateBannerSub = document.getElementById('updateBannerSub');
   const updateBannerBtn = document.getElementById('updateBannerBtn');
 
+  function openUpdateLogWindow(updateInfo) {
+    if (!updateInfo || !WebviewWindow) return;
+
+    const cacheKey = `update-log:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+    localStorage.setItem(cacheKey, JSON.stringify({
+      version: updateInfo.version || '',
+      available: !!updateInfo.available,
+      notes: updateInfo.notes || '',
+      checkedAt: new Date().toISOString()
+    }));
+
+    const existingWindow = WebviewWindow.getByLabel('update-log-window');
+    if (existingWindow) {
+      existingWindow.close().catch(() => {});
+    }
+
+    new WebviewWindow('update-log-window', {
+      url: `update-log.html?dataKey=${encodeURIComponent(cacheKey)}`,
+      title: '版本更新日志',
+      width: 560,
+      height: 420,
+      minWidth: 560,
+      minHeight: 420,
+      maxWidth: 560,
+      center: true,
+      resizable: false,
+      decorations: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      maximizable: false,
+      minimizable: false,
+      focus: true,
+      visible: false
+    });
+  }
+
   function showUpdateBanner(version, notes) {
+    lastUpdateInfo = {
+      version,
+      notes: notes || '',
+      available: true
+    };
+
     if (updateBannerTitle) updateBannerTitle.textContent = `发现新版本 v${version}`;
     if (updateBannerSub && notes) {
       const firstLine = notes.split('\n')[0];
       updateBannerSub.textContent = firstLine.length > 28 ? firstLine.slice(0, 28) + '…' : firstLine;
     }
     if (updateBanner) updateBanner.classList.remove('view-hidden');
-
-    // Pre-populate the settings update UI so user can install immediately
-    if (updateVersionText) {
-      updateVersionText.textContent = `🚀 v${version} 发现新版本`;
-      updateVersionText.style.color = '#3b82f6';
-    }
-    if (updateNotesContainer) {
-      updateNotesContainer.textContent = notes || '服务器未提供额外的发版日志。';
-    }
-    if (inlineUpdateBox) inlineUpdateBox.classList.remove('view-hidden');
     if (checkUpdateBtn) {
       checkUpdateBtn.dataset.pendingUpdate = 'true';
       checkUpdateBtn.textContent = '一键更新';
@@ -91,6 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (updateBannerBtn) {
     updateBannerBtn.addEventListener('click', () => {
+      if (lastUpdateInfo) openUpdateLogWindow(lastUpdateInfo);
       if (updateBanner) updateBanner.classList.add('view-hidden');
       if (settingsView) settingsView.classList.remove('view-hidden');
     });
@@ -208,14 +239,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (closeSettingsBtn) {
     closeSettingsBtn.addEventListener('click', () => {
-      // Reset Update Dialog Layout State
-      if (checkUpdateBtn && checkUpdateBtn.dataset.pendingUpdate === "true") {
-          checkUpdateBtn.dataset.pendingUpdate = "false";
-          checkUpdateBtn.textContent = '检查更新';
-          checkUpdateBtn.classList.remove('shake');
-          if (inlineUpdateBox) inlineUpdateBox.classList.add('view-hidden');
-      }
-
       const isAutoCheck = autoCheckInput ? autoCheckInput.checked : true;
       const intervalVal = parseInt(checkIntervalInput.value, 10);
       
@@ -278,39 +301,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         settingsError.style.color = '#dc2626';
         settingsError.classList.add('view-hidden');
       }
-      if (inlineUpdateBox) inlineUpdateBox.classList.add('view-hidden');
 
       try {
         const updateInfo = await invoke('check_for_updates');
         if (updateInfo) {
+            lastUpdateInfo = updateInfo;
+            openUpdateLogWindow(updateInfo);
             if (updateInfo.available) {
                 checkUpdateBtn.dataset.pendingUpdate = "true";
                 checkUpdateBtn.textContent = '一键更新';
                 checkUpdateBtn.classList.add('shake');
                 checkUpdateBtn.disabled = false;
-                if (updateVersionText) {
-                    updateVersionText.textContent = `🚀 v${updateInfo.version} 发现新版本`;
-                    updateVersionText.style.color = '#3b82f6';
-                }
             } else {
                 checkUpdateBtn.dataset.pendingUpdate = "false";
                 checkUpdateBtn.textContent = '当前已是最新';
                 checkUpdateBtn.disabled = true;
                 checkUpdateBtn.classList.remove('shake');
-                if (updateVersionText) {
-                    updateVersionText.textContent = `✅ v${updateInfo.version || '最新'} 当前已处于最新版`;
-                    updateVersionText.style.color = '#10b981'; // Green success variant
-                }
                 setTimeout(() => {
                     checkUpdateBtn.textContent = originalText;
                     checkUpdateBtn.disabled = false;
                 }, 3500);
             }
-
-            if (updateNotesContainer) {
-                updateNotesContainer.textContent = updateInfo.notes ? updateInfo.notes : '服务器未提供额外的发版日志。';
-            }
-            if (inlineUpdateBox) inlineUpdateBox.classList.remove('view-hidden');
         }
       } catch (e) {
         if (settingsError) {

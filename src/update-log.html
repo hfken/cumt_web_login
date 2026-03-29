@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>版本更新日志</title>
+  <link rel="stylesheet" href="update-log.css">
+</head>
+
+<body>
+  <div class="window-frame">
+    <div class="window-card">
+      <div class="title-bar" data-tauri-drag-region>
+        <div class="title-copy" data-tauri-drag-region>
+          <div class="log-eyebrow">更新日志</div>
+          <div class="window-title">版本更新说明</div>
+        </div>
+        <button id="closeWindowBtn" class="title-close-btn" title="关闭窗口" aria-label="关闭窗口">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="log-shell">
+        <div class="log-header">
+          <h1 id="logTitle">正在读取更新信息</h1>
+          <p id="logSubtitle">请稍候，窗口正在准备版本说明。</p>
+        </div>
+
+        <div class="log-meta">
+          <div class="meta-card">
+            <span class="meta-label">检查结果</span>
+            <strong id="logStatus">载入中</strong>
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">检查时间</span>
+            <strong id="logCheckedAt">-</strong>
+          </div>
+        </div>
+
+        <div class="notes-panel">
+          <div class="notes-title">更新说明</div>
+          <pre id="logNotes">正在加载日志内容...</pre>
+        </div>
+
+        <div class="log-footer">
+          <div id="logHint" class="log-hint">如果发现新版本，请回到主窗口点击“一键更新”。</div>
+          <button id="acknowledgeBtn" class="ack-btn">知道了</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="update-log.js"></script>
+</body>
+
+</html>
