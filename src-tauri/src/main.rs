@@ -3,7 +3,6 @@
     windows_subsystem = "windows"
 )]
 
-use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -13,6 +12,7 @@ use serde_json;
 use reqwest;
 use winreg::enums::*;
 use winreg::RegKey;
+use tauri_plugin_single_instance;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase", default)]
@@ -52,10 +52,13 @@ struct UpdateInfo {
     notes: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 struct LoginResult {
     success: bool,
     message: String,
+    needs_confirm: bool,
+    online_user: String,
 }
 
 fn get_config_path() -> PathBuf {
@@ -99,15 +102,15 @@ fn save_config(config: Config, _app_handle: tauri::AppHandle) {
 }
 
 #[tauri::command]
-fn check_connection() -> StatusResult {
-    let client = Client::builder().timeout(std::time::Duration::from_secs(3)).build().unwrap();
+async fn check_connection() -> StatusResult {
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(3)).build().unwrap();
     let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis();
     let v_key = fastrand::u32(1000..9999);
     
     let url = format!("http://10.2.5.251/drcom/chkstatus?callback=dr{}&v={}", timestamp, v_key);
     
-    if let Ok(res) = client.get(&url).send() {
-        if let Ok(text) = res.text() {
+    if let Ok(res) = client.get(&url).send().await {
+        if let Ok(text) = res.text().await {
             if let Some(start) = text.find('(') {
                 if let Some(end) = text.rfind(')') {
                     let json_str = &text[start+1..end];
@@ -127,23 +130,45 @@ fn check_connection() -> StatusResult {
 }
 
 #[tauri::command]
-fn do_login(config: Config, app_handle: tauri::AppHandle) -> LoginResult {
-    let status = check_connection();
+async fn do_login(config: Config, app_handle: tauri::AppHandle, force: bool) -> LoginResult {
+    let status = check_connection().await;
     let account = if config.operator == "none" { config.student_id.clone() } else { format!("{}@{}", config.student_id, config.operator) };
-    
+
     if status.connected {
         if status.message.contains(&account) {
             let _ = Notification::new(&app_handle.config().tauri.bundle.identifier)
                 .title("中国矿业大学校园网")
                 .body("网络已处于在线状态，无需重复登录")
                 .show();
-            return LoginResult { success: true, message: status.message };
+            return LoginResult { success: true, message: status.message, ..Default::default() };
+        } else if !force {
+            // Another account is online — ask the user to confirm before displacing it
+            let online_user = status.message
+                .find('(')
+                .and_then(|s| status.message.rfind(')').map(|e| status.message[s + 1..e].to_string()))
+                .unwrap_or_else(|| status.message.clone());
+            return LoginResult {
+                success: false,
+                needs_confirm: true,
+                online_user,
+                message: "当前有其他账号在线".into(),
+            };
+        } else {
+            // force=true: logout the current session first, then fall through to login
+            let logout = do_logout().await;
+            if !logout.success {
+                return LoginResult {
+                    success: false,
+                    message: format!("顶号前注销失败：{}", logout.message),
+                    ..Default::default()
+                };
+            }
         }
     }
     
     let ip = status.ip.clone();
     
-    let client = Client::builder().timeout(std::time::Duration::from_secs(5)).build().unwrap();
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(5)).build().unwrap();
     let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis();
     
     let enc_account = urlencoding::encode(&account);
@@ -151,43 +176,43 @@ fn do_login(config: Config, app_handle: tauri::AppHandle) -> LoginResult {
     
     let login_url = format!("http://10.2.5.251:801/eportal/?c=Portal&a=login&callback=dr{}&login_method=1&user_account={}&user_password={}&wlan_user_ip={}&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&jsVersion=3.0&_={}", timestamp, enc_account, enc_password, ip, timestamp);
     
-    if let Ok(res) = client.get(&login_url).send() {
-        if let Ok(text) = res.text() {
+    if let Ok(res) = client.get(&login_url).send().await {
+        if let Ok(text) = res.text().await {
             if text.contains("\"result\":\"1\"") || text.contains("\"result\":1") || text.contains("成功") || text.contains("success") {
                 let _ = Notification::new(&app_handle.config().tauri.bundle.identifier)
                     .title("中国矿业大学校园网")
                     .body(&format!("学号 {} 已成功连接到校园网！", config.student_id))
                     .show();
-                return LoginResult { success: true, message: "登录成功或已在线".into() };
+                return LoginResult { success: true, message: "登录成功或已在线".into(), ..Default::default() };
             } else {
-                return LoginResult { success: false, message: "认证失败（账号密码错误）".into() };
+                return LoginResult { success: false, message: "认证失败（账号密码错误）".into(), ..Default::default() };
             }
         }
     }
-    LoginResult { success: false, message: "网络请求失败".into() }
+    LoginResult { success: false, message: "网络请求失败".into(), ..Default::default() }
 }
 
 #[tauri::command]
-fn do_logout() -> LoginResult {
-    let status = check_connection();
+async fn do_logout() -> LoginResult {
+    let status = check_connection().await;
     if !status.connected {
-        return LoginResult { success: true, message: "当前未登录，无需注销".into() };
+        return LoginResult { success: true, message: "当前未登录，无需注销".into(), ..Default::default() };
     }
     let ip = status.ip;
-    let client = Client::builder().timeout(std::time::Duration::from_secs(5)).build().unwrap();
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(5)).build().unwrap();
     let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis();
     let logout_url = format!("http://10.2.5.251:801/eportal/?c=Portal&a=logout&callback=dr{}&login_method=1&user_account=drcom&user_password=123&ac_logout=0&wlan_user_ip={}&wlan_user_ipv6=&wlan_vlan_id=1&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&jsVersion=3.0&_={}", timestamp, ip, timestamp);
-    
-    if let Ok(res) = client.get(&logout_url).send() {
-        if let Ok(text) = res.text() {
+
+    if let Ok(res) = client.get(&logout_url).send().await {
+        if let Ok(text) = res.text().await {
             if text.contains("\"result\":\"1\"") || text.contains("\"result\":1") || text.contains("成功") || text.contains("success") {
-                return LoginResult { success: true, message: "注销成功".into() };
+                return LoginResult { success: true, message: "注销成功".into(), ..Default::default() };
             } else {
-                return LoginResult { success: false, message: "注销失败".into() };
+                return LoginResult { success: false, message: "注销失败".into(), ..Default::default() };
             }
         }
     }
-    LoginResult { success: false, message: "网络请求失败".into() }
+    LoginResult { success: false, message: "网络请求失败".into(), ..Default::default() }
 }
 
 #[tauri::command]
@@ -202,15 +227,11 @@ fn notify_drop(app_handle: tauri::AppHandle) {
 async fn check_for_updates(app_handle: tauri::AppHandle) -> Result<UpdateInfo, String> {
     match tauri::updater::builder(app_handle.clone()).check().await {
         Ok(update) => {
-            if update.is_update_available() {
-                Ok(UpdateInfo {
-                    available: true,
-                    version: update.latest_version().to_string(),
-                    notes: update.body().cloned().unwrap_or_default(),
-                })
-            } else {
-                Ok(UpdateInfo { available: false, version: "".to_string(), notes: "".to_string() })
-            }
+            Ok(UpdateInfo {
+                available: update.is_update_available(),
+                version: update.latest_version().to_string(),
+                notes: update.body().cloned().unwrap_or_default(),
+            })
         }
         Err(e) => Err(e.to_string()),
     }
@@ -252,6 +273,17 @@ fn main() {
     let tray = SystemTray::new().with_menu(tray_menu).with_tooltip("校园网自动登录");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(window) = app.get_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+            let _ = Notification::new(&app.config().tauri.bundle.identifier)
+                .title("校园网自动登录")
+                .body("程序已在系统托盘静默运行中，请勿重复打开！")
+                .show();
+        }))
         .system_tray(tray)
         .on_system_tray_event(|app, event| match event {
             SystemTrayEvent::LeftClick { .. } => {
@@ -268,10 +300,15 @@ fn main() {
                     }
                     "login" => {
                         let config = get_config();
-                        let _ = do_login(config, app.clone());
+                        let app_handle = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            do_login(config, app_handle, true).await;
+                        });
                     }
                     "logout" => {
-                        let _ = do_logout();
+                        tauri::async_runtime::spawn(async move {
+                            do_logout().await;
+                        });
                     }
                     "quit" => {
                         std::process::exit(0);
@@ -299,7 +336,10 @@ fn main() {
                 window.hide().unwrap();
                 let config = get_config();
                 if config.auto_login {
-                    let _ = do_login(config, app.handle());
+                    let app_handle = app.handle();
+                    tauri::async_runtime::spawn(async move {
+                        do_login(config, app_handle, true).await;
+                    });
                 }
             } else {
                 window.show().unwrap();

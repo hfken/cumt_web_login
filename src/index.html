@@ -82,7 +82,23 @@
 
     <div id="statusMessage" class="status-message">就绪</div>
 
-    <div class="version-info">版本 v1.11.1 | 更新截至 2026/3/25</div>
+    <!-- Update notification banner -->
+    <div id="updateBanner" class="view-hidden update-banner">
+      <div class="update-banner-left">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="16 12 12 8 8 12"></polyline>
+          <line x1="12" y1="16" x2="12" y2="8"></line>
+        </svg>
+        <div class="update-banner-text">
+          <div class="update-banner-title" id="updateBannerTitle">发现新版本</div>
+          <div class="update-banner-sub" id="updateBannerSub">点击右侧按钮前往设置一键升级</div>
+        </div>
+      </div>
+      <button id="updateBannerBtn" class="update-banner-btn">去更新</button>
+    </div>
+
+    <div id="appVersionDisplay" class="version-info">版本加载中... | 中国矿业大学</div>
     <div class="version-info">
       右上角设置内可开启开机自启动连接
     </div>
@@ -91,13 +107,40 @@
       如有问题请联系: <a href="mailto:hyw@cumtlab.tech" title="发邮件给开发者">hyw@cumtlab.tech</a>
     </div>
 
+    <!-- Account conflict confirmation overlay -->
+    <div id="confirmView" class="view-hidden overlay-view">
+      <div class="settings-header">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <h2 style="margin: 0;">顶号确认</h2>
+        </div>
+      </div>
+      <div class="settings-content">
+        <p style="font-size: 13px; color: var(--taupe-700); line-height: 1.7;">当前校园网已有账号在线：</p>
+        <div class="confirm-user-tag" id="confirmOnlineUser">unknown</div>
+        <p style="font-size: 13px; color: var(--taupe-700); line-height: 1.7; margin-top: 18px;">
+          继续登录将<strong style="color: #dc2626;">强制顶替</strong>该账号的在线状态，可能导致对方设备立即断网。<br><br>
+          确认要继续吗？
+        </p>
+      </div>
+      <div style="display: flex; gap: 12px; margin-top: auto; flex: none;">
+        <button id="confirmCancelBtn" class="secondary-btn" style="flex: 1; padding: 12px 0;">取消</button>
+        <button id="confirmOkBtn" class="primary-btn confirm-danger-btn" style="flex: 1.5; padding: 12px 0;">确认顶号</button>
+      </div>
+    </div>
+
     <!-- Settings Overlay -->
     <div id="settingsView" class="view-hidden overlay-view">
       <div class="settings-header">
         <h2>偏好设置</h2>
       </div>
 
-      <div class="settings-content">
+      <div class="settings-content" style="overflow-y: auto; margin-bottom: 16px; padding-right: 6px;">
         <div class="form-checkbox" style="margin-bottom: 0;">
           <input type="checkbox" id="autoLogin">
           <label for="autoLogin">开机后台自动登录</label>
@@ -128,15 +171,16 @@
           style="color: #dc2626; font-size: 12px; margin-top: 14px; text-align: center; font-weight: 500;">
           ⚠ 频率不得低于 5 秒
         </div>
-      </div>
 
-      <div id="inlineUpdateBox" class="view-hidden"
-        style="margin-top: 12px; padding: 12px; background: #f8fafc; border: 1px solid #bccef0; border-radius: 8px; display: flex; flex-direction: column;">
-        <div id="updateVersionText" style="font-size: 13px; font-weight: 600; color: #3b82f6; margin-bottom: 6px;">🚀
-          v?.?.? 发现新版本</div>
-        <div id="updateNotesContainer"
-          style="font-size: 12px; color: #475569; line-height: 1.5; white-space: pre-wrap; font-family: ui-sans-serif, system-ui, sans-serif; max-height: 100px; overflow-y: auto;">
+        <div id="inlineUpdateBox" class="view-hidden"
+          style="margin-top: 16px; padding: 14px; background: #f8fafc; border: 1px solid #bccef0; border-radius: 8px; display: flex; flex-direction: column; flex-shrink: 0;">
+          <div id="updateVersionText" style="font-size: 13px; font-weight: 600; color: #3b82f6; margin-bottom: 6px;">🚀
+            v?.?.? 发现新版本</div>
+          <div id="updateNotesContainer"
+            style="font-size: 12px; color: #475569; line-height: 1.5; white-space: pre-wrap; font-family: ui-sans-serif, system-ui, sans-serif;">
+          </div>
         </div>
+
       </div>
 
       <div style="display: flex; gap: 12px; margin-top: auto; flex: none;">
