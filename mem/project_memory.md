@@ -56,6 +56,8 @@
   - `notify_drop`
   - `check_for_updates`
   - `install_update`
+  - `get_beta_installer_info`
+  - `install_beta_update`
   - `restart_app`
 
 ## 后端职责
@@ -89,6 +91,8 @@
   - `notify_drop()` 通过系统通知提示断线。
   - `check_for_updates()` 使用 Tauri updater 检查版本。
   - `install_update()` 下载并安装更新。
+  - `get_beta_installer_info()` 由 Rust 后端通过 `reqwest` 拉取 beta 通道的 `updater-beta.json`，解析 `windows-x86_64` 更新包地址。
+  - `install_beta_update()` 会基于 beta 清单推导对应的 NSIS 安装器 `.exe` 地址，下载到系统临时目录后直接启动安装程序，避免浏览器拦截下载链接。
   - `restart_app()` 重启应用。
 - `commands.rs` 只做 Tauri command 暴露和简单转发，不直接承载业务细节。
 
@@ -140,6 +144,7 @@
   - 检测频率
   - 高级设置中的“校园网登录地址”输入框，留空时使用默认地址
   - 检查更新 / 一键更新
+  - 主分支设置页额外提供“安装测试版”按钮；点击后会调用 Rust command `install_beta_update`，由后端下载并启动 beta 安装器
 - 还有两个覆盖层：
   - 顶号确认层
   - 更新横幅/内嵌更新信息块

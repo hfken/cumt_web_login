@@ -22,6 +22,7 @@
 - 改 Tauri 托盘、窗口、启动流程：看 `src-tauri/src/app.rs`
 - 改前端调用的命令名或参数：看 `src-tauri/src/commands.rs`
 - 改设置页里的高级设置和地址输入：看 `src/index.html` + `src/renderer.js`
+- 主分支如果要改“安装测试版”入口：看 `src/index.html` 里的 `installBetaBtn`、`src/renderer.js` 里的 `openBetaInstaller()`，以及 `src-tauri/src/commands.rs` / `src-tauri/src/services/system.rs` 里的 `install_beta_update()`
 
 ## 当前提醒
 

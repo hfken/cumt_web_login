@@ -1,4 +1,6 @@
-use crate::models::{Config, LoginResult, StatusResult, UpdateInfo};
+use crate::models::{
+    BetaInstallResult, BetaInstallerInfo, Config, LoginResult, StatusResult, UpdateInfo,
+};
 use crate::services::{config, portal, system};
 
 #[tauri::command]
@@ -43,6 +45,16 @@ pub async fn check_for_updates(app_handle: tauri::AppHandle) -> Result<UpdateInf
 #[tauri::command]
 pub async fn install_update(app_handle: tauri::AppHandle) -> Result<(), String> {
     system::install_update(app_handle).await
+}
+
+#[tauri::command]
+pub async fn get_beta_installer_info() -> Result<BetaInstallerInfo, String> {
+    system::get_beta_installer_info().await
+}
+
+#[tauri::command]
+pub async fn install_beta_update() -> Result<BetaInstallResult, String> {
+    system::install_beta_update().await
 }
 
 #[tauri::command]

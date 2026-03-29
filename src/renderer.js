@@ -1,6 +1,5 @@
 const { invoke } = window.__TAURI__.tauri;
 const { appWindow } = window.__TAURI__.window;
-
 document.addEventListener('contextmenu', e => {
   if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
     e.preventDefault();
@@ -30,6 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const portalAddressInput = document.getElementById('portalAddress');
   const backToLoginBtn = document.getElementById('backToLoginBtn');
   const checkUpdateBtn = document.getElementById('checkUpdateBtn');
+  const installBetaBtn = document.getElementById('installBetaBtn');
   const settingsError = document.getElementById('settingsError');
 
   const inlineUpdateBox = document.getElementById('inlineUpdateBox');
@@ -149,6 +149,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (loginView) loginView.classList.remove('view-hidden');
   }
 
+  async function openBetaInstaller() {
+    if (!installBetaBtn) return;
+
+    const originalText = installBetaBtn.textContent;
+    installBetaBtn.disabled = true;
+    installBetaBtn.textContent = '正在下载...';
+
+    try {
+      const betaInstallResult = await invoke('install_beta_update');
+      const betaVersion = betaInstallResult && typeof betaInstallResult.version === 'string'
+        ? betaInstallResult.version
+        : '未知版本';
+
+      if (settingsError) {
+        settingsError.textContent = `测试版 v${betaVersion} 安装程序已启动，请按安装向导完成更新`;
+        settingsError.style.color = '#355f8a';
+        settingsError.classList.remove('view-hidden');
+      }
+    } catch (error) {
+      if (settingsError) {
+        settingsError.textContent = '安装测试版失败: ' + error;
+        settingsError.style.color = '#dc2626';
+        settingsError.classList.remove('view-hidden');
+      }
+      console.error('Install beta update failed:', error);
+    }
+
+    installBetaBtn.textContent = originalText;
+    installBetaBtn.disabled = false;
+  }
+
   // Settings Overlay Logic
   if (autoCheckInput) {
     autoCheckInput.addEventListener('change', () => {
@@ -162,7 +193,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (openSettingsBtn) {
     openSettingsBtn.addEventListener('click', () => {
       if (settingsView) settingsView.classList.remove('view-hidden');
-      if (settingsError) settingsError.classList.add('view-hidden');
+      if (settingsError) {
+        settingsError.style.color = '#dc2626';
+        settingsError.classList.add('view-hidden');
+      }
+    });
+  }
+
+  if (installBetaBtn) {
+    installBetaBtn.addEventListener('click', () => {
+      openBetaInstaller();
     });
   }
 
@@ -188,7 +228,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         return; // Early return to prevent saving & closing
       }
 
-      if (settingsError) settingsError.classList.add('view-hidden');
+      if (settingsError) {
+        settingsError.style.color = '#dc2626';
+        settingsError.classList.add('view-hidden');
+      }
       if (settingsView) settingsView.classList.add('view-hidden');
       
       const newConfig = {
@@ -218,6 +261,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               setTimeout(() => invoke('restart_app').catch(console.error), 800);
           } catch(e) {
               if (settingsError) {
+                  settingsError.style.color = '#dc2626';
                   settingsError.textContent = "更新安装失败: " + e;
                   settingsError.classList.remove('view-hidden');
               }
@@ -230,7 +274,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const originalText = '检查更新';
       checkUpdateBtn.textContent = '检查中...';
       checkUpdateBtn.disabled = true;
-      if (settingsError) settingsError.classList.add('view-hidden');
+      if (settingsError) {
+        settingsError.style.color = '#dc2626';
+        settingsError.classList.add('view-hidden');
+      }
       if (inlineUpdateBox) inlineUpdateBox.classList.add('view-hidden');
 
       try {
@@ -267,6 +314,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       } catch (e) {
         if (settingsError) {
+            settingsError.style.color = '#dc2626';
             settingsError.textContent = '网络不通，或你尚未为此版本生成安全签名。\n底层截获: ' + e;
             settingsError.classList.remove('view-hidden');
         }

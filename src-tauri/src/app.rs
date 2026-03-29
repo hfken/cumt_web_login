@@ -25,6 +25,8 @@ pub fn run() {
             crate::commands::notify_drop,
             crate::commands::check_for_updates,
             crate::commands::install_update,
+            crate::commands::get_beta_installer_info,
+            crate::commands::install_beta_update,
             crate::commands::restart_app
         ])
         .setup(|app| {

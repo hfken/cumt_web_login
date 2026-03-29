@@ -50,6 +50,21 @@ pub struct UpdateInfo {
     pub notes: String,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BetaInstallerInfo {
+    pub version: String,
+    pub notes: String,
+    pub url: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BetaInstallResult {
+    pub version: String,
+    pub installer_path: String,
+}
+
 #[derive(Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginResult {
