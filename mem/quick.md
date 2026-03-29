@@ -22,6 +22,7 @@
 - 改登录/注销/联网检测：看 `src-tauri/src/services/portal.rs`
 - 改配置和开机自启：看 `src-tauri/src/services/config.rs`
 - 改 Tauri 托盘、窗口、启动流程：看 `src-tauri/src/app.rs`
+- 主窗口显示位置统一在 `src-tauri/src/app.rs` 的 `reveal_main_window()` 控制，当前会先 `center()` 再显示
 - 改前端调用的命令名或参数：看 `src-tauri/src/commands.rs`
 - 改设置页里的高级设置和地址输入：看 `src/index.html` + `src/renderer.js`
 - 改“检查更新”后的独立日志窗口：看 `src/renderer.js` + `src/update-log.html` + `src/update-log.js`
