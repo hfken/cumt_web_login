@@ -42,6 +42,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   let lastUpdateInfo = null;
   let notifiedUpdateVersion = null;
   let betaReinstallConfirmVersion = null;
+  let isBetaBuild = false;
+  const startupVersion = await getCurrentVersion();
+  isBetaBuild = String(startupVersion).includes('-beta');
 
   const confirmView = document.getElementById('confirmView');
   const confirmOnlineUser = document.getElementById('confirmOnlineUser');
@@ -129,11 +132,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function openUpdateLogWindow(updateInfo) {
+  function getPreferredUpdateChannel() {
+    return isBetaBuild ? 'beta' : 'stable';
+  }
+
+  function openUpdateLogWindow(updateInfo, channel = 'stable') {
     if (!updateInfo || !WebviewWindow) return;
 
     const cacheKey = `update-log:${Date.now()}:${Math.random().toString(16).slice(2)}`;
     localStorage.setItem(cacheKey, JSON.stringify({
+      channel,
       version: updateInfo.version || '',
       available: !!updateInfo.available,
       notes: updateInfo.notes || '',
@@ -208,7 +216,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (updateBannerBtn) {
     updateBannerBtn.addEventListener('click', () => {
-      if (lastUpdateInfo) openUpdateLogWindow(lastUpdateInfo);
+      if (lastUpdateInfo) openUpdateLogWindow(lastUpdateInfo, getPreferredUpdateChannel());
       if (updateBanner) updateBanner.classList.add('view-hidden');
       if (settingsView) settingsView.classList.remove('view-hidden');
     });
@@ -392,7 +400,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const updateInfo = await invoke('check_for_updates');
         if (updateInfo) {
             lastUpdateInfo = updateInfo;
-            openUpdateLogWindow(updateInfo);
+            openUpdateLogWindow(updateInfo, getPreferredUpdateChannel());
         }
       } catch (e) {
         showSettingsMessage('网络不通，或你尚未为此版本生成安全签名。\n底层截获: ' + e, 'error');
@@ -469,10 +477,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Dynamic Version Injection
   const appVersionDisplay = document.getElementById('appVersionDisplay');
-  if (appVersionDisplay && app) {
-      app.getVersion().then(v => {
-          appVersionDisplay.textContent = `版本 v${v} | 中国矿业大学`;
-      }).catch(console.error);
+  if (appVersionDisplay && startupVersion) {
+      appVersionDisplay.textContent = `版本 v${startupVersion} | 中国矿业大学`;
   }
 
   // Check Status Click

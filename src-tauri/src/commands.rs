@@ -63,8 +63,18 @@ pub async fn get_beta_installer_info() -> Result<BetaInstallerInfo, String> {
 }
 
 #[tauri::command]
+pub async fn get_stable_installer_info() -> Result<BetaInstallerInfo, String> {
+    system::get_stable_installer_info().await
+}
+
+#[tauri::command]
 pub async fn install_beta_update() -> Result<BetaInstallResult, String> {
     system::install_beta_update().await
+}
+
+#[tauri::command]
+pub async fn install_stable_update() -> Result<BetaInstallResult, String> {
+    system::install_stable_update().await
 }
 
 #[tauri::command]
