@@ -1,4 +1,5 @@
 const { invoke } = window.__TAURI__.tauri;
+const { app } = window.__TAURI__;
 const { appWindow, WebviewWindow } = window.__TAURI__.window;
 
 document.addEventListener('contextmenu', e => {
@@ -30,6 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const portalAddressInput = document.getElementById('portalAddress');
   const backToLoginBtn = document.getElementById('backToLoginBtn');
   const checkUpdateBtn = document.getElementById('checkUpdateBtn');
+  const installBetaBtn = document.getElementById('installBetaBtn');
   const settingsError = document.getElementById('settingsError');
 
   let overrideSuccessView = false;
@@ -39,6 +41,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let pendingLoginConfig = null;
   let lastUpdateInfo = null;
   let notifiedUpdateVersion = null;
+  let betaReinstallConfirmVersion = null;
 
   const confirmView = document.getElementById('confirmView');
   const confirmOnlineUser = document.getElementById('confirmOnlineUser');
@@ -49,6 +52,82 @@ document.addEventListener('DOMContentLoaded', async () => {
   const updateBannerTitle = document.getElementById('updateBannerTitle');
   const updateBannerSub = document.getElementById('updateBannerSub');
   const updateBannerBtn = document.getElementById('updateBannerBtn');
+
+  function showSettingsMessage(message, type = 'error') {
+    if (!settingsError) return;
+    settingsError.textContent = message;
+    settingsError.style.color = type === 'error' ? '#dc2626' : '#355f8a';
+    settingsError.classList.remove('view-hidden');
+  }
+
+  function clearSettingsMessage() {
+    if (!settingsError) return;
+    settingsError.style.color = '#dc2626';
+    settingsError.classList.add('view-hidden');
+  }
+
+  function parseVersion(version) {
+    const sanitized = String(version || '').trim().replace(/^v/i, '').split('+')[0];
+    const [corePart, preReleasePart = ''] = sanitized.split('-', 2);
+
+    return {
+      core: corePart.split('.').map(part => Number.parseInt(part, 10) || 0),
+      preRelease: preReleasePart
+        ? preReleasePart.split('.').map(part => (/^\d+$/.test(part) ? Number.parseInt(part, 10) : part.toLowerCase()))
+        : []
+    };
+  }
+
+  function compareIdentifiers(left, right) {
+    if (typeof left === 'number' && typeof right === 'number') {
+      return left === right ? 0 : (left > right ? 1 : -1);
+    }
+
+    if (typeof left === 'number') return -1;
+    if (typeof right === 'number') return 1;
+    if (left === right) return 0;
+    return left > right ? 1 : -1;
+  }
+
+  function compareVersions(leftVersion, rightVersion) {
+    const left = parseVersion(leftVersion);
+    const right = parseVersion(rightVersion);
+    const coreLength = Math.max(left.core.length, right.core.length);
+
+    for (let index = 0; index < coreLength; index += 1) {
+      const diff = compareIdentifiers(left.core[index] ?? 0, right.core[index] ?? 0);
+      if (diff !== 0) return diff;
+    }
+
+    if (left.preRelease.length === 0 && right.preRelease.length === 0) return 0;
+    if (left.preRelease.length === 0) return 1;
+    if (right.preRelease.length === 0) return -1;
+
+    const preReleaseLength = Math.max(left.preRelease.length, right.preRelease.length);
+    for (let index = 0; index < preReleaseLength; index += 1) {
+      const leftPart = left.preRelease[index];
+      const rightPart = right.preRelease[index];
+
+      if (leftPart === undefined) return -1;
+      if (rightPart === undefined) return 1;
+
+      const diff = compareIdentifiers(leftPart, rightPart);
+      if (diff !== 0) return diff;
+    }
+
+    return 0;
+  }
+
+  async function getCurrentVersion() {
+    if (!app || typeof app.getVersion !== 'function') return '';
+
+    try {
+      return await app.getVersion();
+    } catch (error) {
+      console.warn('Failed to read app version:', error);
+      return '';
+    }
+  }
 
   function openUpdateLogWindow(updateInfo) {
     if (!updateInfo || !WebviewWindow) return;
@@ -188,6 +267,65 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (loginView) loginView.classList.remove('view-hidden');
   }
 
+  async function openBetaInstaller() {
+    if (!installBetaBtn) return;
+
+    const originalText = installBetaBtn.textContent;
+    installBetaBtn.disabled = true;
+    installBetaBtn.textContent = '检查版本...';
+    clearSettingsMessage();
+
+    try {
+      const [betaInfo, currentVersion] = await Promise.all([
+        invoke('get_beta_installer_info'),
+        getCurrentVersion()
+      ]);
+
+      const targetVersion = betaInfo && typeof betaInfo.version === 'string'
+        ? betaInfo.version
+        : '未知版本';
+      const versionRelation = currentVersion ? compareVersions(currentVersion, targetVersion) : -1;
+
+      if (currentVersion && versionRelation > 0) {
+        betaReinstallConfirmVersion = null;
+        showSettingsMessage(
+          `当前版本 v${currentVersion} 高于测试通道 v${targetVersion}，已阻止回退安装。`,
+          'info'
+        );
+        return;
+      }
+
+      if (currentVersion && versionRelation === 0 && betaReinstallConfirmVersion !== targetVersion) {
+        betaReinstallConfirmVersion = targetVersion;
+        showSettingsMessage(
+          `当前已是测试版 v${targetVersion}。如需重装，请再点击一次“安装测试版”。`,
+          'info'
+        );
+        return;
+      }
+
+      betaReinstallConfirmVersion = null;
+      installBetaBtn.textContent = versionRelation === 0 ? '正在重装...' : '正在下载...';
+
+      const betaInstallResult = await invoke('install_beta_update');
+      const launchedVersion = betaInstallResult && typeof betaInstallResult.version === 'string'
+        ? betaInstallResult.version
+        : targetVersion;
+
+      showSettingsMessage(
+        `测试版 v${launchedVersion} 安装程序已启动，请按安装向导完成更新。`,
+        'info'
+      );
+    } catch (error) {
+      betaReinstallConfirmVersion = null;
+      showSettingsMessage('安装测试版失败: ' + error, 'error');
+      console.error('Install beta update failed:', error);
+    } finally {
+      installBetaBtn.textContent = originalText;
+      installBetaBtn.disabled = false;
+    }
+  }
+
   // Settings Overlay Logic
   if (autoCheckInput) {
     autoCheckInput.addEventListener('change', () => {
@@ -201,7 +339,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (openSettingsBtn) {
     openSettingsBtn.addEventListener('click', () => {
       if (settingsView) settingsView.classList.remove('view-hidden');
-      if (settingsError) settingsError.classList.add('view-hidden');
+      betaReinstallConfirmVersion = null;
+      clearSettingsMessage();
+    });
+  }
+
+  if (installBetaBtn) {
+    installBetaBtn.addEventListener('click', () => {
+      openBetaInstaller();
     });
   }
 
@@ -211,7 +356,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const intervalVal = parseInt(checkIntervalInput.value, 10);
       
       if (isAutoCheck && (isNaN(intervalVal) || intervalVal < 5)) {
-        if (settingsError) settingsError.classList.remove('view-hidden');
+        showSettingsMessage('⚠ 频率不得低于 5 秒', 'error');
         if (checkIntervalInput) {
           checkIntervalInput.classList.add('shake');
           setTimeout(() => checkIntervalInput.classList.remove('shake'), 400);
@@ -219,7 +364,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return; // Early return to prevent saving & closing
       }
 
-      if (settingsError) settingsError.classList.add('view-hidden');
+      clearSettingsMessage();
       if (settingsView) settingsView.classList.add('view-hidden');
       
       const newConfig = {
@@ -241,7 +386,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (checkUpdateBtn) {
     checkUpdateBtn.addEventListener('click', async () => {
       checkUpdateBtn.disabled = true;
-      if (settingsError) settingsError.classList.add('view-hidden');
+      clearSettingsMessage();
 
       try {
         const updateInfo = await invoke('check_for_updates');
@@ -250,10 +395,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             openUpdateLogWindow(updateInfo);
         }
       } catch (e) {
-        if (settingsError) {
-            settingsError.textContent = '网络不通，或你尚未为此版本生成安全签名。\n底层截获: ' + e;
-            settingsError.classList.remove('view-hidden');
-        }
+        showSettingsMessage('网络不通，或你尚未为此版本生成安全签名。\n底层截获: ' + e, 'error');
         console.error(e);
       } finally {
         checkUpdateBtn.disabled = false;
@@ -327,8 +469,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Dynamic Version Injection
   const appVersionDisplay = document.getElementById('appVersionDisplay');
-  if (appVersionDisplay && window.__TAURI__ && window.__TAURI__.app) {
-      window.__TAURI__.app.getVersion().then(v => {
+  if (appVersionDisplay && app) {
+      app.getVersion().then(v => {
           appVersionDisplay.textContent = `版本 v${v} | 中国矿业大学`;
       }).catch(console.error);
   }
