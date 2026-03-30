@@ -1,11 +1,11 @@
 {
-  "version": "1.20.2",
-  "notes": "校园网自动登录 v1.20.2 更新内容：\n1. 修复：开机自启动后自动登录实际未执行\n2. 修复：系统托盘静默登录 / 注销实际未执行\n3. 修复：从托盘唤起窗口时不能立即跳转已连接页面，需等待下次心跳\n4. 新增：连接成功后自动检查更新，有新版本时显示醒目横幅\n5. 新增：顶号保护 —— 检测到其他账号在线时弹出确认框，确认后先注销再登录",
+  "version": "1.20.4",
+  "notes": "校园网自动登录 v1.20.4 更新内容：\n1. 核心功能紧急修复更新",
   "pub_date": "2026-03-27T12:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNC9BVDN3ZTJOM3JzcmVya0pDVHIzVnZzb1FVQTVXTy9RUW96R3AwdUhOUHdzZWI5Z3FWT1Z3ODJyZUJlbjgxbTNteXVuSHB0bC9yRE5HaUp5bGJkQndnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NTkwMTgwCWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuMl94NjQtc2V0dXAubnNpcy56aXAKWHllVjV1M2pNN2M4UXJHYzZkNUNLRitwVGJZVktBc05MSXBKRlgwa3VMNllkZkdQY2tCYk1Qcjl1WGZDRTRsTkpRQkRiYUk4Z1ErbjRvcmY1NWt6RGc9PQo=",
-      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/releases/download/1.20.2/%E4%B8%AD%E5%9B%BD%E7%9F%BF%E4%B8%9A%E5%A4%A7%E5%AD%A6%E6%A0%A1%E5%9B%AD%E7%BD%91%E8%87%AA%E5%8A%A8%E7%99%BB%E5%BD%95_1.20.2_x64-setup.nsis.zip"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDVGS0pybitlRHhWL2s2d2N0T3AzMnRTeDhTK1JseUZMVzZrVzk3K0UrSGxhV1QxUHEzTnFEWmNvbGVjdjdqdzdSWVllaUlyNVdMTVN1SlkrWktRMEFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0ODQ1NjI0CWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuNF94NjQtc2V0dXAubnNpcy56aXAKRDZsU3Jac2NhSWFBNURwakhMQlFESjN5eHVTc1dOaVBkeFNpSXlBWnBETzFtejRmQ2hMMDFidVZ3dXQvNC9RSEhTR2xQbCtvdmpOWkV4Z291V0hsRFE9PQo=",
+      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/releases/download/1.20.4/%E4%B8%AD%E5%9B%BD%E7%9F%BF%E4%B8%9A%E5%A4%A7%E5%AD%A6%E6%A0%A1%E5%9B%AD%E7%BD%91%E8%87%AA%E5%8A%A8%E7%99%BB%E5%BD%95_1.20.4_x64-setup.nsis.zip"
     }
   }
 }
