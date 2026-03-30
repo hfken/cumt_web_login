@@ -36,6 +36,7 @@
 - `assets/`：README 用的界面截图，不参与运行时逻辑。
 - `icons/` 和 `src-tauri/icons/`：应用图标。
 - `updater.json`：热更新元数据示例。
+- `updater-beta.json`：beta 分支专用的热更新元数据模板，供测试更新通道使用。
 - `mem/`：用于保存项目记忆。
 
 ## 前端职责
@@ -63,6 +64,7 @@
   - `get_beta_installer_info`
   - `install_beta_update`
   - `restart_app`
+- `commands.rs` 里的 `save_config(config_value: ...)` 和 `do_login(config_value: ..., force: ...)` 在前端 `invoke` 时要传 `configValue`，不能继续传旧的 `config`，否则会报 `missing required key configValue`。
 
 ## 后端职责
 
@@ -87,6 +89,7 @@
   - 解析 JSONP 返回值，提取在线状态、UID、IP。
   - 会优先读取配置中的 `portal_address`，留空时才回退默认校园网地址。
   - `portal_address` 支持用户输入主机、带协议的地址或显式端口，例如 `10.2.5.251`、`http://10.2.5.251`、`http://10.2.5.251:801`。
+  - 若用户在 `portal_address` 里显式填写端口，状态检测 `/drcom/chkstatus` 现在也会跟着使用该端口，不再只把端口用于登录/注销接口。
   - `login()` 请求认证接口：`http://10.2.5.251:801/eportal/?c=Portal&a=login...`
   - 若当前已有其他账号在线且 `force=false`，返回 `needs_confirm=true`，前端展示顶号确认。
   - 若 `force=true`，会先执行 `logout()` 再登录。
@@ -125,8 +128,11 @@
 ## 版本与运行
 
 - `package.json` 很薄，只保留 `tauri` script。
-- JS 侧版本是 `1.10`，Rust/Tauri 包版本是 `1.20.3`。
-- 真实产品版本以 `src-tauri/Cargo.toml` 和 `src-tauri/tauri.conf.json` 为准，当前二者一致为 `1.20.3`。
+- JS 侧版本是 `1.10`，Rust/Tauri 包版本是 `1.20.4`。
+- 真实产品版本以 `src-tauri/Cargo.toml` 和 `src-tauri/tauri.conf.json` 为准，当前二者一致为 `1.20.4`。
+- 当前 `master` 已吸收测试通道能力，但正式客户端 updater endpoint 仍指向 `https://gitee.com/huangyaowei2005/cumt_web_login/raw/master/updater.json`。
+- `updater-beta.json`、`beta-assets/` 和 `scripts/publish-beta.ps1` 已随合并进入 `master`，便于继续维护 beta 通道。
+- `updater.json` 仍保存上一次正式发版 `1.20.3` 的签名与下载地址；真正发布 `1.20.4` 正式热更新时，需要在生成正式安装包后再同步该文件。
 - 开发命令：
   - `npm install`
   - `npm run tauri dev`
@@ -151,6 +157,13 @@
   - 检测频率
   - 高级设置中的“校园网登录地址”输入框，留空时使用默认地址
   - “检查更新”按钮固定作为进入更新日志子窗口的入口，按钮文案不再切换为“一键更新”
+  - 点击“检查更新”后，版本更新日志会在独立新窗口中展示
+  - 更新日志窗口是无原生边框、自绘关闭按钮、始终置顶、固定宽度且不可拉伸的紧凑小弹层
+  - 更新说明面板底部额外留白，避免说明方框边线贴住窗口边界
+  - 更新日志窗口按自然内容高度优先适配；如果内容过长超出屏幕，再退化为说明区内部滚动，但底部按钮始终可见
+  - 更新日志窗口的尺寸现在以 `src/update-log.html` 里的 `.window-frame` 为测量基准，避免 `body` 外边距和自绘边框不在同一套高度计算里
+  - 更新日志窗口现在不再显示 `.window-frame` 的背景层，只保留内部 `.window-card` 作为单层可视边框；页面内同时禁用了右键菜单和文本选择
+  - 更新日志窗口底部确认按钮现在会按更新状态切换：检测到新版本时显示“立即更新”并直接调用 `install_update` + `restart_app`，没新版本时保持“知道了”仅关闭窗口
   - 主分支设置页额外提供“安装测试版”按钮；点击后会调用 Rust command `install_beta_update`，由后端下载并启动 beta 安装器
 - 还有两个覆盖层：
   - 顶号确认层
@@ -169,8 +182,11 @@
   - 自动更新检查不再以“是否成功连接校园网”为前提，而是以 `check_internet_access()` 的结果作为标准；只要当前能访问互联网，即使还停留在登录页，也会继续尝试检查更新。
   - 若自动检查因网络、签名或公网暂不可达而失败，后续后台检测、窗口重新聚焦或再次进入成功页时仍会重试，不会因一次失败永久跳过。
   - 自动检查发现新版本时，除了显示主窗口横幅，还会发一条系统通知。
+  - 手动检查更新后，版本说明会在独立的更新日志窗口中显示，而不是内嵌在设置页里。
   - 设置页手动检查后会弹出 `update-log` 子窗口；若发现新版本，窗口底部按钮会变成“立即更新”，并可直接调用 `install_update()`。
   - 顶部更新横幅点击后也会打开同一份更新日志子窗口，同时把设置页带到前台。
+  - 更新日志窗口会按内容自动计算高度，尽量在首次打开时直接显示完整内容，并保持始终置顶。
+  - 更新日志窗口高度上限不再参考初始窗口高度，而是参考屏幕可用高度；初始创建高度和最小高度统一为 `420`，减少首次渲染时自绘边框和底部按钮被裁掉的问题。
 
 ## 容易踩坑的点
 
@@ -178,7 +194,10 @@
 - `Config` 存明文密码，属于本地明文持久化方案。
 - 默认校园网地址仍然内置在 Rust 后端，只是现在允许用户通过设置页覆盖。
 - 前端按钮文案与初始化状态较多，改 UI 时要留意状态切换是否互相覆盖。
+- 更新日志窗口依赖 `src/update-log.html` 这一组静态页面；如果后续调整前端目录或 Tauri 资源路径，要一起检查这个窗口是否还能正常打开。
+- 更新日志窗口现在是 `decorations: false` + `transparent: true` 的自绘窗口；如果后续改回系统标题栏，`update-log.html` 里的自定义标题栏和关闭按钮也要一起调整。
 - 版本号同时出现在 `package.json`、`Cargo.toml`、`tauri.conf.json`、`updater.json`，发布时容易不一致。
+- 现在已有正式/测试两条更新线：正式线看 `updater.json`，beta 线看 `updater-beta.json`；发测试更新时不要误改正式 endpoint 或正式元数据。
 - 托盘静默登录和启动自动登录现在直接调用 `services::portal::login()`，如果以后要加日志、埋点或统一前后置动作，要优先检查这些入口是否保持一致。
 
 ## 后续协作时的最快入口

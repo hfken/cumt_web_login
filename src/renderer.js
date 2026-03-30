@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       loginBtn.textContent = '正在连接...';
       setStatus('正在顶替登录...', 'normal');
       try {
-        const result = await invoke('do_login', { config, force: true });
+        const result = await invoke('do_login', { configValue: config, force: true });
         setStatus(result.message, result.success ? 'success' : 'error');
         if (result.success) {
           overrideSuccessView = false;
@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       };
       
       if (typeof startHeartbeat === 'function') startHeartbeat(newConfig.checkInterval, newConfig.autoCheck);
-      invoke('save_config', { config: newConfig }).catch(console.error);
+      invoke('save_config', { configValue: newConfig }).catch(console.error);
     });
   }
 
@@ -468,7 +468,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       autoCheck: autoCheckInput ? autoCheckInput.checked : true
     };
     try {
-        const result = await invoke('do_login', { config: newConfig, force: false });
+        const result = await invoke('do_login', { configValue: newConfig, force: false });
         if (result.needsConfirm) {
             setStatus('当前有其他账号在线，请确认是否顶号', 'error');
             pendingLoginConfig = newConfig;
