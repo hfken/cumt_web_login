@@ -1,11 +1,11 @@
 {
-  "version": "1.20.4-beta.2",
-  "notes": "v1.20.4正式版已经发布，建议安装正式版。\n beta 测试版 v1.20.4-beta.2：自动更新改为按互联网可达性判断，失败后可重试；发现新版本会发系统通知；设置页检查更新按钮固定为更新日志入口；更新日志窗口去掉阴影。",
-  "pub_date": "2026-03-29T18:00:10Z",
+  "version": "1.20.5-beta.1",
+  "notes": "修复已知问题，优化用户体验",
+  "pub_date": "2026-03-30T07:30:10Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDMwWmxjZGhtMkhmR0JmSVUxT0owcGNnZ2xhOGY5T2pwZkdGWlI4emkxMklUWURHcGt2TVEyODRCVVNINkZhbDVkTjVaNUhydzMrK0V3TkZLVzRJZlF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0ODA3MTAxCWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuNC1iZXRhLjJfeDY0LXNldHVwLm5zaXMuemlwCmZpTnkrMmM1T0VDYlAzdHJmSVBFdWZPMXZ4Z2FJVmcxK3liS0M3SHdvL0dVZk9UNkxITmY4cHZwekJFdm43N2JDYkt3S1pncHNMMGZzSklNWHRZcUNRPT0K",
-      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/raw/beta/beta-assets/CUMTLogin-beta-1.20.4-beta.2-x64-setup.nsis.zip"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNHhqNU42akVuM0U0dGhqMUpMcXBaUld3Rm9sT21UV0NjNEIraEQzdFcvbG84U0RJcFRlV3BsMDlsWVZ1WW1ZZHFGZndSbHpuWXkrTHJYRHJhSEJtMlFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0ODU1MzMzCWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuNS1iZXRhLjFfeDY0LXNldHVwLm5zaXMuemlwCndZbkVSMDFGdTBpb0tjbytpR01Bam5RR1k4OTlwVXRMNlNkZmdRYjJ4ZittbGRHaG5vU0JVTWNTeFk5KzZFOEVLbW9QekhjV0trZExvaXBRaEJ2N0JRPT0K",
+      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/raw/beta/beta-assets/CUMTLogin-beta-1.20.5-beta.1-x64-setup.nsis.zip"
     }
   }
 }

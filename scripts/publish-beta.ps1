@@ -5,6 +5,7 @@ param(
   [string]$Branch = "beta",
   [string]$AssetsDir = "beta-assets",
   [string]$CommitMessage,
+  [switch]$Guided,
   [switch]$SkipBuild,
   [switch]$NoPush,
   [switch]$DryRun
@@ -19,6 +20,88 @@ $repoRoot = Split-Path -Parent $scriptDir
 function Write-Step {
   param([string]$Message)
   Write-Host "==> $Message" -ForegroundColor Cyan
+}
+
+function Read-DefaultInput {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Prompt,
+    [string]$Default = ""
+  )
+
+  $suffix = if ([string]::IsNullOrWhiteSpace($Default)) { "" } else { " [$Default]" }
+  $value = Read-Host "$Prompt$suffix"
+  if ([string]::IsNullOrWhiteSpace($value)) {
+    return $Default
+  }
+
+  return $value.Trim()
+}
+
+function Read-ChoiceInput {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Prompt,
+    [Parameter(Mandatory = $true)]
+    [string[]]$Options,
+    [int]$DefaultIndex = 0
+  )
+
+  if ($Options.Count -eq 0) {
+    throw "Read-ChoiceInput 需要至少一个可选项。"
+  }
+
+  if ($DefaultIndex -lt 0 -or $DefaultIndex -ge $Options.Count) {
+    $DefaultIndex = 0
+  }
+
+  Write-Host $Prompt -ForegroundColor Cyan
+  for ($i = 0; $i -lt $Options.Count; $i++) {
+    $marker = if ($i -eq $DefaultIndex) { " (默认)" } else { "" }
+    Write-Host "  [$($i + 1)] $($Options[$i])$marker"
+  }
+
+  while ($true) {
+    $raw = Read-Host "请输入选项编号"
+    if ([string]::IsNullOrWhiteSpace($raw)) {
+      return $DefaultIndex
+    }
+
+    $choice = 0
+    if ([int]::TryParse($raw.Trim(), [ref]$choice)) {
+      if ($choice -ge 1 -and $choice -le $Options.Count) {
+        return ($choice - 1)
+      }
+    }
+
+    Write-Host "输入无效，请重新输入 1-$($Options.Count) 之间的编号。" -ForegroundColor Yellow
+  }
+}
+
+function Read-YesNoInput {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Prompt,
+    [bool]$Default = $true
+  )
+
+  $defaultText = if ($Default) { "Y/n" } else { "y/N" }
+  while ($true) {
+    $raw = Read-Host "$Prompt [$defaultText]"
+    if ([string]::IsNullOrWhiteSpace($raw)) {
+      return $Default
+    }
+
+    switch ($raw.Trim().ToLowerInvariant()) {
+      'y' { return $true }
+      'yes' { return $true }
+      'n' { return $false }
+      'no' { return $false }
+      default {
+        Write-Host "请输入 y 或 n。" -ForegroundColor Yellow
+      }
+    }
+  }
 }
 
 function Invoke-RepoCommand {
@@ -154,6 +237,7 @@ try {
   $updaterBetaPath = Join-Path $repoRoot "updater-beta.json"
   $nsisDir = Join-Path $repoRoot "src-tauri/target/release/bundle/nsis"
   $assetsPath = Join-Path $repoRoot $AssetsDir
+  $guidedMode = $Guided -or $PSBoundParameters.Count -eq 0
 
   Write-Step "检查当前分支"
   $currentBranch = Invoke-RepoCommand -Command "git branch --show-current"
@@ -169,6 +253,51 @@ try {
   }
 
   $targetVersion = if ([string]::IsNullOrWhiteSpace($Version)) { $cargoVersion } else { $Version.Trim() }
+
+  if ($guidedMode) {
+    Write-Host ""
+    Write-Host "Beta 发布向导" -ForegroundColor Green
+    Write-Host "当前分支: $currentBranch"
+    Write-Host "当前版本: $cargoVersion"
+    Write-Host ""
+
+    $targetVersion = Read-DefaultInput -Prompt "1. 请输入本次 beta 版本号" -Default $targetVersion
+
+    $notesMode = Read-ChoiceInput -Prompt "2. 更新说明怎么处理？" -Options @(
+      "自动生成默认说明",
+      "手动输入一段更新说明"
+    ) -DefaultIndex 0
+    if ($notesMode -eq 1) {
+      $Notes = Read-DefaultInput -Prompt "请输入本次更新说明" -Default $Notes
+    }
+
+    $shouldBuild = Read-YesNoInput -Prompt "3. 是否先执行正式构建（推荐）？" -Default (-not $SkipBuild)
+    $SkipBuild = -not $shouldBuild
+
+    $shouldPush = Read-YesNoInput -Prompt "4. 提交完成后是否推送到 origin/$Branch？" -Default (-not $NoPush)
+    $NoPush = -not $shouldPush
+
+    $shouldDryRun = Read-YesNoInput -Prompt "5. 是否只演练流程而不真正写入？" -Default $DryRun
+    $DryRun = $shouldDryRun
+
+    $customCommit = Read-DefaultInput -Prompt "6. 自定义提交信息（留空则自动生成）" -Default $CommitMessage
+    if (-not [string]::IsNullOrWhiteSpace($customCommit)) {
+      $CommitMessage = $customCommit
+    }
+
+    Write-Host ""
+    Write-Host "发布参数确认：" -ForegroundColor Cyan
+    Write-Host "  版本号: $targetVersion"
+    Write-Host "  更新说明: $(if ([string]::IsNullOrWhiteSpace($Notes)) { '自动生成' } else { '自定义' })"
+    Write-Host "  执行构建: $([bool](-not $SkipBuild))"
+    Write-Host "  推送远端: $([bool](-not $NoPush))"
+    Write-Host "  DryRun: $([bool]$DryRun)"
+    Write-Host ""
+
+    if (-not (Read-YesNoInput -Prompt "确认按以上配置继续发布？" -Default $true)) {
+      throw "已取消发布。"
+    }
+  }
 
   if ($targetVersion -ne $cargoVersion) {
     Write-Step "更新 beta 版本到 $targetVersion"
