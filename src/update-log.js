@@ -1,6 +1,7 @@
 const { invoke } = window.__TAURI__.tauri;
 const { app } = window.__TAURI__;
 const { appWindow, LogicalSize } = window.__TAURI__.window;
+let keepWindowOnTop = true;
 
 document.addEventListener('contextmenu', event => {
   event.preventDefault();
@@ -136,7 +137,7 @@ async function autoFitWindow() {
 
   const targetHeight = Math.max(420, Math.min(maxWindowHeight, naturalHeight));
 
-  await appWindow.setAlwaysOnTop(true);
+  await appWindow.setAlwaysOnTop(keepWindowOnTop);
   await appWindow.setSize(new LogicalSize(560, targetHeight));
   await appWindow.center();
   await appWindow.show();
@@ -148,6 +149,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const titleEl = document.getElementById('logTitle');
   const subtitleEl = document.getElementById('logSubtitle');
   const statusEl = document.getElementById('logStatus');
+  const currentVersionEl = document.getElementById('logCurrentVersion');
   const checkedAtEl = document.getElementById('logCheckedAt');
   const notesEl = document.getElementById('logNotes');
   const hintEl = document.getElementById('logHint');
@@ -160,6 +162,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentInfo = null;
   let isLoading = false;
 
+  if (currentVersionEl) {
+    currentVersionEl.textContent = currentVersion ? `v${currentVersion}` : '未知';
+  }
+
   function setLoadingState(channel) {
     titleEl.textContent = channel === 'beta' ? '正在读取测试通道' : '正在读取正式通道';
     subtitleEl.textContent = '请稍候，窗口正在向对应通道检查最新版本。';
@@ -168,9 +174,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (metaCards[0]) metaCards[0].classList.remove('status-success-card');
     checkedAtEl.textContent = formatCheckedAt(new Date().toISOString());
     notesEl.textContent = '正在加载日志内容...';
-    if (hintEl) {
-      hintEl.textContent = '通道切换后会自动刷新版本说明与安装按钮。';
-    }
+    if (hintEl) hintEl.textContent = '';
     if (acknowledgeBtn) {
       acknowledgeBtn.disabled = true;
       acknowledgeBtn.textContent = '正在检查...';
@@ -195,9 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         statusEl.textContent = '发现测试版';
         statusEl.classList.add('status-success');
         if (metaCards[0]) metaCards[0].classList.add('status-success-card');
-        if (hintEl) {
-          hintEl.textContent = '将下载并启动测试版安装程序，后续请按安装向导完成更新。';
-        }
+        if (hintEl) hintEl.textContent = '';
         if (acknowledgeBtn) {
           acknowledgeBtn.disabled = false;
           acknowledgeBtn.textContent = '安装测试版';
@@ -209,23 +211,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         titleEl.textContent = `${versionText} 已安装`;
         subtitleEl.textContent = '当前应用已经运行在这个测试版，无需重复安装。';
         statusEl.textContent = '当前已是测试版';
-        if (hintEl) {
-          hintEl.textContent = '如果确实需要重装当前测试版，请回到主窗口设置页再次点击“安装测试版”。';
-        }
+        if (hintEl) hintEl.textContent = '';
       } else if (info.versionRelation > 0) {
         titleEl.textContent = `${versionText} 低于当前版本`;
-        subtitleEl.textContent = '当前安装版本高于测试通道版本，窗口不会触发回退安装。';
-        statusEl.textContent = '无需降级';
-        if (hintEl) {
-          hintEl.textContent = '当前版本高于测试通道版本，已阻止回退安装。';
-        }
+        subtitleEl.textContent = '你当前安装的版本比测试通道中的版本更新，无需重新安装。';
+        statusEl.textContent = '当前版本较新';
+        if (hintEl) hintEl.textContent = '';
       } else {
         titleEl.textContent = `${versionText} 不可安装`;
         subtitleEl.textContent = '测试通道返回了版本信息，但当前无法确认是否可安装。';
         statusEl.textContent = '暂不可安装';
-        if (hintEl) {
-          hintEl.textContent = '请稍后重试，或回到主窗口重新检查网络与版本。';
-        }
+        if (hintEl) hintEl.textContent = '';
       }
 
       if (acknowledgeBtn) {
@@ -237,29 +233,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (info.channel === 'stable' && info.installMode === 'installer') {
       if (info.available) {
-        titleEl.textContent = `${versionText} 可升级为正式版`;
-        subtitleEl.textContent = '当前运行的是测试版，切换到正式通道后可直接安装正式版。';
+        titleEl.textContent = info.versionRelation > 0
+          ? `${versionText} 可回退为正式版`
+          : `${versionText} 可升级为正式版`;
+        subtitleEl.textContent = info.versionRelation > 0
+          ? '当前运行的是更高版本测试版，切换到正式通道后可直接回退安装正式版。'
+          : '当前运行的是测试版，切换到正式通道后可直接安装正式版。';
         statusEl.textContent = '发现正式版';
         statusEl.classList.add('status-success');
         if (metaCards[0]) metaCards[0].classList.add('status-success-card');
-        if (hintEl) {
-          hintEl.textContent = '将下载并启动正式版安装程序，完成后即可切换回正式版。';
-        }
+        if (hintEl) hintEl.textContent = '';
         if (acknowledgeBtn) {
           acknowledgeBtn.disabled = false;
-          acknowledgeBtn.textContent = '安装正式版';
+          acknowledgeBtn.textContent = info.versionRelation > 0 ? '回退到正式版' : '安装正式版';
         }
       } else {
         titleEl.textContent = versionText ? `${versionText} 暂不可安装` : '正式通道无可安装版本';
-        subtitleEl.textContent = info.versionRelation > 0
-          ? '当前测试版版本高于正式通道，窗口不会触发回退安装。'
-          : '当前已经没有比你这版更高的正式版可安装。';
-        statusEl.textContent = info.versionRelation > 0 ? '无需降级' : '当前已是最新';
-        if (hintEl) {
-          hintEl.textContent = info.versionRelation > 0
-            ? '当前测试版版本高于正式通道，已阻止回退安装。'
-            : '如果后续发布了更高的正式版，这里会直接提供安装入口。';
-        }
+        subtitleEl.textContent = '当前已经没有可供切换的正式版安装包。';
+        statusEl.textContent = '当前已是最新';
+        if (hintEl) hintEl.textContent = '';
         if (acknowledgeBtn) {
           acknowledgeBtn.disabled = false;
           acknowledgeBtn.textContent = '知道了';
@@ -277,17 +269,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (info.available) {
       statusEl.classList.add('status-success');
       if (metaCards[0]) metaCards[0].classList.add('status-success-card');
-      if (hintEl) {
-        hintEl.textContent = '确认无误后可直接开始更新，应用完成安装后会自动重启。';
-      }
+      if (hintEl) hintEl.textContent = '';
       if (acknowledgeBtn) {
         acknowledgeBtn.disabled = false;
         acknowledgeBtn.textContent = '立即更新';
       }
     } else {
-      if (hintEl) {
-        hintEl.textContent = '当前已经是最新版本，无需回到主窗口执行更新。';
-      }
+      if (hintEl) hintEl.textContent = '';
       if (acknowledgeBtn) {
         acknowledgeBtn.disabled = false;
         acknowledgeBtn.textContent = '知道了';
@@ -343,7 +331,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       return {
         channel: 'stable',
-        available: !currentVersion || versionRelation < 0,
+        available: !!version && (!currentVersion || versionRelation !== 0),
         version,
         notes: stableInfo && typeof stableInfo.notes === 'string' ? stableInfo.notes : '',
         checkedAt,
@@ -434,6 +422,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           const launchedVersion = betaInstallResult && typeof betaInstallResult.version === 'string'
             ? betaInstallResult.version
             : currentInfo.version;
+          keepWindowOnTop = false;
+          await appWindow.setAlwaysOnTop(false);
           acknowledgeBtn.textContent = '已启动安装器';
           if (hintEl) {
             hintEl.textContent = `测试版 v${launchedVersion} 安装程序已启动，请按安装向导完成更新。`;
@@ -457,6 +447,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           const launchedVersion = stableInstallResult && typeof stableInstallResult.version === 'string'
             ? stableInstallResult.version
             : currentInfo.version;
+          keepWindowOnTop = false;
+          await appWindow.setAlwaysOnTop(false);
           acknowledgeBtn.textContent = '已启动安装器';
           if (hintEl) {
             hintEl.textContent = `正式版 v${launchedVersion} 安装程序已启动，请按安装向导完成切换。`;
