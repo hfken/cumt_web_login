@@ -6,3 +6,4 @@ src-tauri/target/
 .env
 .vscode/
 *.key
+mem/
