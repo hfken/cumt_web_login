@@ -335,6 +335,37 @@ input:focus, select:focus {
   font-weight: 600;
 }
 
+.settings-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-header-row h2 {
+  margin-bottom: 24px;
+}
+
+.settings-back-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--taupe-200);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--taupe-700);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 24px;
+  flex-shrink: 0;
+}
+
+.settings-back-btn:hover {
+  background: var(--taupe-100);
+  color: var(--taupe-800);
+}
+
 .settings-content {
   flex: 1;
 }

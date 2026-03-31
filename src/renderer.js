@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const settingsView = document.getElementById('settingsView');
   const openSettingsBtn = document.getElementById('openSettingsBtn');
   const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+  const settingsBackBtn = document.getElementById('settingsBackBtn');
   const checkIntervalInput = document.getElementById('checkInterval');
   const checkIntervalWrapper = document.getElementById('checkIntervalWrapper');
   const autoCheckInput = document.getElementById('autoCheck');
@@ -95,6 +96,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
       console.warn('Failed to parse elevation draft:', error);
       return null;
+    }
+  }
+
+  function applyConfigToForm(configValue) {
+    if (!configValue) return;
+
+    studentIdInput.value = configValue.studentId || '';
+    passwordInput.value = configValue.password || '';
+    operatorSelect.value = configValue.operator || 'cmcc';
+    if (portalAddressInput) portalAddressInput.value = configValue.portalAddress || '';
+    autoLoginCheck.checked = !!configValue.autoLogin;
+    if (autoCheckInput) autoCheckInput.checked = configValue.autoCheck !== false;
+    if (checkIntervalInput) checkIntervalInput.value = configValue.checkInterval || 15;
+    if (checkIntervalWrapper) {
+      if (configValue.autoCheck === false) checkIntervalWrapper.classList.add('collapsed');
+      else checkIntervalWrapper.classList.remove('collapsed');
     }
   }
 
@@ -340,6 +357,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  if (settingsBackBtn) {
+    settingsBackBtn.addEventListener('click', () => {
+      if (settingsView) settingsView.classList.add('view-hidden');
+      clearSettingsMessage();
+      showLoginView();
+    });
+  }
+
   if (closeSettingsBtn) {
     closeSettingsBtn.addEventListener('click', () => {
       handleSaveSettings().catch(error => {
@@ -415,36 +440,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   let config = { studentId: '', password: '', operator: 'cmcc', portalAddress: '', autoLogin: false, checkInterval: 15, autoCheck: true };
   try {
     config = await invoke('get_config');
-    studentIdInput.value = config.studentId || '';
-    passwordInput.value = config.password || '';
-    operatorSelect.value = config.operator || 'cmcc';
-    if (portalAddressInput) portalAddressInput.value = config.portalAddress || '';
-    autoLoginCheck.checked = config.autoLogin || false;
-    if (autoCheckInput) autoCheckInput.checked = config.autoCheck !== false;
-    if (checkIntervalInput) checkIntervalInput.value = config.checkInterval || 15;
-    if (checkIntervalWrapper) {
-        if (config.autoCheck === false) checkIntervalWrapper.classList.add('collapsed');
-        else checkIntervalWrapper.classList.remove('collapsed');
-    }
+    applyConfigToForm(config);
   } catch (e) {
     console.error('Failed to load config', e);
   }
 
   const elevationDraft = consumeElevationDraft();
   if (elevationDraft) {
-    studentIdInput.value = elevationDraft.studentId || '';
-    passwordInput.value = elevationDraft.password || '';
-    operatorSelect.value = elevationDraft.operator || 'cmcc';
-    if (portalAddressInput) portalAddressInput.value = elevationDraft.portalAddress || '';
-    autoLoginCheck.checked = !!elevationDraft.autoLogin;
-    if (autoCheckInput) autoCheckInput.checked = elevationDraft.autoCheck !== false;
-    if (checkIntervalInput) checkIntervalInput.value = elevationDraft.checkInterval || 15;
-    if (checkIntervalWrapper) {
-      if (elevationDraft.autoCheck === false) checkIntervalWrapper.classList.add('collapsed');
-      else checkIntervalWrapper.classList.remove('collapsed');
+    applyConfigToForm(elevationDraft);
+    showLoginView();
+
+    let elevated = false;
+    try {
+      elevated = await invoke('is_running_as_admin');
+    } catch (error) {
+      console.warn('Failed to detect elevation state:', error);
     }
-    if (settingsView) settingsView.classList.remove('view-hidden');
-    showSettingsMessage('已切换为管理员模式，请点击“保存并返回”完成开机自启动设置。', 'info');
+
+    if (elevated) {
+      try {
+        await invoke('save_config', { configValue: elevationDraft });
+        config = { ...config, ...elevationDraft };
+        if (typeof startHeartbeat === 'function') startHeartbeat(config.checkInterval, config.autoCheck);
+        clearSettingsMessage();
+        setStatus('已切换为管理员模式并完成开机自启动设置', 'success');
+      } catch (error) {
+        if (settingsView) settingsView.classList.remove('view-hidden');
+        showSettingsMessage(`已恢复设置草稿，但自动保存失败：${String(error)}`, 'error');
+      }
+    } else {
+      setStatus('已恢复上次未保存的设置草稿，可继续登录或打开设置页处理。', 'normal');
+    }
   }
 
   // Auto check connection

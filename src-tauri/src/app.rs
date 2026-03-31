@@ -20,6 +20,7 @@ pub fn run() {
             crate::commands::get_config,
             crate::commands::save_config,
             crate::commands::relaunch_as_admin,
+            crate::commands::is_running_as_admin,
             crate::commands::check_connection,
             crate::commands::do_login,
             crate::commands::do_logout,

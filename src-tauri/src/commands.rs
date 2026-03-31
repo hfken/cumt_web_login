@@ -31,6 +31,11 @@ pub fn relaunch_as_admin(app_handle: tauri::AppHandle) -> Result<bool, String> {
 }
 
 #[tauri::command]
+pub fn is_running_as_admin() -> Result<bool, String> {
+    config::is_running_as_admin()
+}
+
+#[tauri::command]
 pub async fn check_connection() -> StatusResult {
     portal::check_connection().await
 }

@@ -163,6 +163,16 @@ pub fn relaunch_as_admin() -> Result<bool, String> {
 }
 
 #[cfg(target_os = "windows")]
+pub fn is_running_as_admin() -> Result<bool, String> {
+    is_process_elevated()
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn is_running_as_admin() -> Result<bool, String> {
+    Ok(false)
+}
+
+#[cfg(target_os = "windows")]
 fn sync_auto_login(config: &Config) -> Result<(), String> {
     cleanup_legacy_auto_login_registry();
     let target_exe = std::env::current_exe().map_err(|error| error.to_string())?;
