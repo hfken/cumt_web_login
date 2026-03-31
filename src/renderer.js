@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const settingsView = document.getElementById('settingsView');
   const openSettingsBtn = document.getElementById('openSettingsBtn');
   const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+  const clearConfigBtn = document.getElementById('clearConfigBtn');
   const settingsBackBtn = document.getElementById('settingsBackBtn');
   const checkIntervalInput = document.getElementById('checkInterval');
   const checkIntervalWrapper = document.getElementById('checkIntervalWrapper');
@@ -33,7 +34,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const backToLoginBtn = document.getElementById('backToLoginBtn');
   const checkUpdateBtn = document.getElementById('checkUpdateBtn');
   const settingsError = document.getElementById('settingsError');
-  const ELEVATION_DRAFT_KEY = 'campus-login-elevation-draft';
 
   let overrideSuccessView = false;
   let wasConnected = null;
@@ -50,6 +50,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const confirmOnlineUser = document.getElementById('confirmOnlineUser');
   const confirmCancelBtn = document.getElementById('confirmCancelBtn');
   const confirmOkBtn = document.getElementById('confirmOkBtn');
+  const unsavedConfirmView = document.getElementById('unsavedConfirmView');
+  const unsavedConfirmCancelBtn = document.getElementById('unsavedConfirmCancelBtn');
+  const unsavedConfirmOkBtn = document.getElementById('unsavedConfirmOkBtn');
 
   const updateBanner = document.getElementById('updateBanner');
   const updateBannerTitle = document.getElementById('updateBannerTitle');
@@ -81,22 +84,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
   }
 
-  function storeElevationDraft() {
-    localStorage.setItem(ELEVATION_DRAFT_KEY, JSON.stringify(collectDraftConfig()));
-  }
-
-  function consumeElevationDraft() {
-    const raw = localStorage.getItem(ELEVATION_DRAFT_KEY);
-    if (!raw) return null;
-
-    localStorage.removeItem(ELEVATION_DRAFT_KEY);
-
-    try {
-      return JSON.parse(raw);
-    } catch (error) {
-      console.warn('Failed to parse elevation draft:', error);
-      return null;
-    }
+  function getDefaultConfig() {
+    return {
+      studentId: '',
+      password: '',
+      operator: 'cmcc',
+      portalAddress: '',
+      autoLogin: false,
+      checkInterval: 15,
+      autoCheck: true
+    };
   }
 
   function applyConfigToForm(configValue) {
@@ -113,6 +110,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (configValue.autoCheck === false) checkIntervalWrapper.classList.add('collapsed');
       else checkIntervalWrapper.classList.remove('collapsed');
     }
+  }
+
+  function normalizeConfig(configValue) {
+    return {
+      studentId: (configValue?.studentId || '').trim(),
+      password: configValue?.password || '',
+      operator: configValue?.operator || 'cmcc',
+      portalAddress: (configValue?.portalAddress || '').trim(),
+      autoLogin: !!configValue?.autoLogin,
+      checkInterval: parseInt(configValue?.checkInterval, 10) || 15,
+      autoCheck: configValue?.autoCheck !== false
+    };
+  }
+
+  function hasUnsavedSettings() {
+    return JSON.stringify(normalizeConfig(collectDraftConfig())) !== JSON.stringify(normalizeConfig(config));
   }
 
   function parseVersion(version) {
@@ -331,22 +344,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  if (autoLoginCheck) {
-    autoLoginCheck.addEventListener('change', async () => {
-      if (!autoLoginCheck.checked) return;
+  if (unsavedConfirmCancelBtn) {
+    unsavedConfirmCancelBtn.addEventListener('click', () => {
+      if (unsavedConfirmView) unsavedConfirmView.classList.add('view-hidden');
+      if (settingsView) settingsView.classList.remove('view-hidden');
+    });
+  }
 
-      storeElevationDraft();
-
-      try {
-        const relaunched = await invoke('relaunch_as_admin');
-        if (relaunched) {
-          showSettingsMessage('正在请求管理员权限并重启程序，请稍候...', 'info');
-        }
-      } catch (error) {
-        localStorage.removeItem(ELEVATION_DRAFT_KEY);
-        autoLoginCheck.checked = false;
-        showSettingsMessage(String(error), 'error');
-      }
+  if (unsavedConfirmOkBtn) {
+    unsavedConfirmOkBtn.addEventListener('click', () => {
+      applyConfigToForm(config);
+      if (unsavedConfirmView) unsavedConfirmView.classList.add('view-hidden');
+      if (settingsView) settingsView.classList.add('view-hidden');
+      clearSettingsMessage();
+      showLoginView();
     });
   }
 
@@ -359,6 +370,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (settingsBackBtn) {
     settingsBackBtn.addEventListener('click', () => {
+      if (hasUnsavedSettings()) {
+        if (unsavedConfirmView) unsavedConfirmView.classList.remove('view-hidden');
+        return;
+      }
       if (settingsView) settingsView.classList.add('view-hidden');
       clearSettingsMessage();
       showLoginView();
@@ -370,6 +385,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       handleSaveSettings().catch(error => {
         console.error('Failed to save settings:', error);
         showSettingsMessage(String(error), 'error');
+        closeSettingsBtn.disabled = false;
+        if (checkUpdateBtn) checkUpdateBtn.disabled = false;
+      });
+    });
+  }
+
+  if (clearConfigBtn) {
+    clearConfigBtn.addEventListener('click', () => {
+      handleClearConfig().catch(error => {
+        console.error('Failed to clear config:', error);
+        showSettingsMessage(String(error), 'error');
+        clearConfigBtn.disabled = false;
         closeSettingsBtn.disabled = false;
         if (checkUpdateBtn) checkUpdateBtn.disabled = false;
       });
@@ -391,6 +418,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       clearSettingsMessage();
       closeSettingsBtn.disabled = true;
+      if (clearConfigBtn) clearConfigBtn.disabled = true;
       if (checkUpdateBtn) checkUpdateBtn.disabled = true;
       
       const newConfig = {
@@ -402,14 +430,66 @@ document.addEventListener('DOMContentLoaded', async () => {
         checkInterval: intervalVal,
         autoCheck: isAutoCheck
       };
+      const previousConfig = normalizeConfig(config);
+      const nextConfig = normalizeConfig(newConfig);
+      const autoLoginChanged = previousConfig.autoLogin !== nextConfig.autoLogin;
       
       try {
         await invoke('save_config', { configValue: newConfig });
+        config = { ...newConfig };
         if (typeof startHeartbeat === 'function') startHeartbeat(newConfig.checkInterval, newConfig.autoCheck);
         if (settingsView) settingsView.classList.add('view-hidden');
+        showLoginView();
+
+        if (autoLoginChanged) {
+          try {
+            const relaunched = await invoke('relaunch_as_admin');
+            if (relaunched) {
+              setStatus('设置已保存，正在请求管理员权限并重启程序以完成开机自启动配置...', 'normal');
+              return;
+            }
+
+            setStatus('设置已保存，正在重启程序以完成开机自启动配置...', 'normal');
+            invoke('restart_app').catch(console.error);
+            return;
+          } catch (error) {
+            setStatus(`设置已保存，但未完成开机自启动更新：${String(error)}`, 'error');
+            return;
+          }
+        }
+
+        setStatus('设置已保存', 'success');
       } catch (error) {
         showSettingsMessage(String(error), 'error');
       } finally {
+        closeSettingsBtn.disabled = false;
+        if (clearConfigBtn) clearConfigBtn.disabled = false;
+        if (checkUpdateBtn) checkUpdateBtn.disabled = false;
+      }
+  }
+
+  async function handleClearConfig() {
+      const confirmed = window.confirm('这会清空本地保存的学号、密码和其他设置，确定继续吗？');
+      if (!confirmed) return;
+
+      clearSettingsMessage();
+      if (clearConfigBtn) clearConfigBtn.disabled = true;
+      closeSettingsBtn.disabled = true;
+      if (checkUpdateBtn) checkUpdateBtn.disabled = true;
+
+      try {
+        const result = await invoke('clear_config');
+        config = getDefaultConfig();
+        applyConfigToForm(config);
+        if (typeof startHeartbeat === 'function') startHeartbeat(config.checkInterval, config.autoCheck);
+        overrideSuccessView = true;
+        showLoginView();
+        if (settingsView) settingsView.classList.add('view-hidden');
+        setStatus(result?.message || '已清空本地保存的账号配置，当前网络连接状态不受影响。', 'normal');
+      } catch (error) {
+        showSettingsMessage(String(error), 'error');
+      } finally {
+        if (clearConfigBtn) clearConfigBtn.disabled = false;
         closeSettingsBtn.disabled = false;
         if (checkUpdateBtn) checkUpdateBtn.disabled = false;
       }
@@ -437,40 +517,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Load Config
-  let config = { studentId: '', password: '', operator: 'cmcc', portalAddress: '', autoLogin: false, checkInterval: 15, autoCheck: true };
+  let config = getDefaultConfig();
   try {
     config = await invoke('get_config');
     applyConfigToForm(config);
   } catch (e) {
     console.error('Failed to load config', e);
-  }
-
-  const elevationDraft = consumeElevationDraft();
-  if (elevationDraft) {
-    applyConfigToForm(elevationDraft);
-    showLoginView();
-
-    let elevated = false;
-    try {
-      elevated = await invoke('is_running_as_admin');
-    } catch (error) {
-      console.warn('Failed to detect elevation state:', error);
-    }
-
-    if (elevated) {
-      try {
-        await invoke('save_config', { configValue: elevationDraft });
-        config = { ...config, ...elevationDraft };
-        if (typeof startHeartbeat === 'function') startHeartbeat(config.checkInterval, config.autoCheck);
-        clearSettingsMessage();
-        setStatus('已切换为管理员模式并完成开机自启动设置', 'success');
-      } catch (error) {
-        if (settingsView) settingsView.classList.remove('view-hidden');
-        showSettingsMessage(`已恢复设置草稿，但自动保存失败：${String(error)}`, 'error');
-      }
-    } else {
-      setStatus('已恢复上次未保存的设置草稿，可继续登录或打开设置页处理。', 'normal');
-    }
   }
 
   // Auto check connection

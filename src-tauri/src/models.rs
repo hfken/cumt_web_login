@@ -73,3 +73,10 @@ pub struct LoginResult {
     pub needs_confirm: bool,
     pub online_user: String,
 }
+
+#[derive(Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ClearConfigResult {
+    pub cleared: bool,
+    pub message: String,
+}

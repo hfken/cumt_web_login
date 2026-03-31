@@ -1,5 +1,6 @@
 use crate::models::{
-    BetaInstallResult, BetaInstallerInfo, Config, LoginResult, StatusResult, UpdateInfo,
+    BetaInstallResult, BetaInstallerInfo, ClearConfigResult, Config, LoginResult, StatusResult,
+    UpdateInfo,
 };
 use crate::services::{config, portal, system};
 
@@ -11,6 +12,13 @@ pub fn get_config() -> Config {
 #[tauri::command]
 pub async fn save_config(config_value: Config, _app_handle: tauri::AppHandle) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || config::save_config_with_result(&config_value))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn clear_config() -> Result<ClearConfigResult, String> {
+    tauri::async_runtime::spawn_blocking(config::clear_config_with_result)
         .await
         .map_err(|error| error.to_string())?
 }
@@ -28,11 +36,6 @@ pub fn relaunch_as_admin(app_handle: tauri::AppHandle) -> Result<bool, String> {
     }
 
     Ok(relaunched)
-}
-
-#[tauri::command]
-pub fn is_running_as_admin() -> Result<bool, String> {
-    config::is_running_as_admin()
 }
 
 #[tauri::command]

@@ -208,6 +208,17 @@ input:focus, select:focus {
   background: var(--taupe-100);
 }
 
+.danger-outline-btn {
+  color: #b45309;
+  border-color: #f1d6ae;
+  background: #fffaf2;
+}
+
+.danger-outline-btn:hover {
+  background: #fdf1de;
+  border-color: #e7c185;
+}
+
 .status-message {
   text-align: center;
   font-size: 13px;
@@ -323,6 +334,10 @@ input:focus, select:focus {
   animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+#unsavedConfirmView {
+  z-index: 120;
+}
+
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(15px); }
   to { opacity: 1; transform: translateY(0); }
@@ -339,10 +354,11 @@ input:focus, select:focus {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-top: -8px;
 }
 
 .settings-header-row h2 {
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .settings-back-btn {
@@ -357,13 +373,17 @@ input:focus, select:focus {
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
-  margin-bottom: 24px;
+  margin-bottom: 22px;
   flex-shrink: 0;
 }
 
 .settings-back-btn:hover {
   background: var(--taupe-100);
   color: var(--taupe-800);
+}
+
+#settingsView .settings-content {
+  padding-top: 4px;
 }
 
 .settings-content {

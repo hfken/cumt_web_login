@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use directories::ProjectDirs;
 
-use crate::models::Config;
+use crate::models::{ClearConfigResult, Config};
 
 #[cfg(target_os = "windows")]
 const AUTO_LOGIN_TASK_NAME: &str = "CampusNetworkAutoLogin";
@@ -66,16 +66,40 @@ pub fn load_config() -> Config {
 
 pub fn save_config_with_result(config: &Config) -> Result<(), String> {
     let path = get_config_path();
+    let json =
+        serde_json::to_string_pretty(config).map_err(|error| format!("序列化配置失败：{}", error))?;
+    fs::write(path, json).map_err(|error| format!("保存配置失败：{}", error))?;
 
-    if let Ok(json) = serde_json::to_string_pretty(config) {
-        let _ = fs::write(path, json);
+    Ok(())
+}
+
+pub fn clear_config_with_result() -> Result<ClearConfigResult, String> {
+    let path = get_config_path();
+    match fs::remove_file(&path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(format!("清除本地配置失败：{}", error)),
     }
 
-    sync_auto_login(config)
+    Ok(ClearConfigResult {
+        cleared: true,
+        message: "已清空本地保存的账号配置，原有开机自启动设置保持不变。".into(),
+    })
 }
 
 pub fn refresh_auto_login(config: &Config) {
-    let _ = sync_auto_login(config);
+    if !get_config_path().exists() {
+        return;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let _ = sync_auto_login(config, false);
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = config;
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -163,24 +187,14 @@ pub fn relaunch_as_admin() -> Result<bool, String> {
 }
 
 #[cfg(target_os = "windows")]
-pub fn is_running_as_admin() -> Result<bool, String> {
-    is_process_elevated()
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn is_running_as_admin() -> Result<bool, String> {
-    Ok(false)
-}
-
-#[cfg(target_os = "windows")]
-fn sync_auto_login(config: &Config) -> Result<(), String> {
+fn sync_auto_login(config: &Config, allow_elevation: bool) -> Result<(), String> {
     cleanup_legacy_auto_login_registry();
     let target_exe = std::env::current_exe().map_err(|error| error.to_string())?;
 
     if config.auto_login {
-        apply_auto_login_action(AutoLoginAction::Enable, &target_exe, true)
+        apply_auto_login_action(AutoLoginAction::Enable, &target_exe, allow_elevation)
     } else {
-        apply_auto_login_action(AutoLoginAction::Disable, &target_exe, true)
+        apply_auto_login_action(AutoLoginAction::Disable, &target_exe, allow_elevation)
     }
 }
 
@@ -401,6 +415,6 @@ fn cleanup_legacy_auto_login_registry() {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn sync_auto_login(_config: &Config) -> Result<(), String> {
+fn sync_auto_login(_config: &Config, _allow_elevation: bool) -> Result<(), String> {
     Ok(())
 }

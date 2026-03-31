@@ -134,6 +134,30 @@
       </div>
     </div>
 
+    <div id="unsavedConfirmView" class="view-hidden overlay-view">
+      <div class="settings-header">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <h2 style="margin: 0;">未保存设置</h2>
+        </div>
+      </div>
+      <div class="settings-content">
+        <p style="font-size: 13px; color: var(--taupe-700); line-height: 1.8;">
+          当前设置尚未保存。<br><br>
+          如果现在返回，刚才修改的复选框和其他表单内容都会恢复成上次保存的状态。
+        </p>
+      </div>
+      <div style="display: flex; gap: 12px; margin-top: auto; flex: none;">
+        <button id="unsavedConfirmCancelBtn" class="primary-btn" style="flex: 1; padding: 12px 0;">继续编辑</button>
+        <button id="unsavedConfirmOkBtn" class="secondary-btn" style="flex: 1; padding: 12px 0;">仍然返回</button>
+      </div>
+    </div>
+
     <!-- Settings Overlay -->
     <div id="settingsView" class="view-hidden overlay-view">
       <div class="settings-header settings-header-row">
@@ -193,6 +217,7 @@
       </div>
 
       <div style="display: flex; gap: 12px; margin-top: auto; flex: none;">
+        <button id="clearConfigBtn" class="secondary-btn danger-outline-btn" style="flex: 1; padding: 12px 0;">清空配置</button>
         <button id="checkUpdateBtn" class="secondary-btn" style="flex: 1; padding: 12px 0;">检查更新</button>
         <button id="closeSettingsBtn" class="primary-btn" style="flex: 2; padding: 12px 0;">保存并返回</button>
       </div>
