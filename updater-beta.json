@@ -1,10 +1,10 @@
 {
   "version": "1.20.5-beta.2",
-  "notes": "测试更新通道 beta 1.20.5-beta.2\n发布时间：2026-03-31T16:58:01Z\n本次构建由 scripts/publish-beta.ps1 自动发布。",
-  "pub_date": "2026-03-31T16:58:01Z",
+  "notes": "测试更新通道 beta 1.20.5-beta.2\n发布时间：2026-03-31T17:07:09Z\n本次构建由 scripts/publish-beta.ps1 自动发布。",
+  "pub_date": "2026-03-31T17:07:09Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDhHLzNvMXVINCtOdWpHb1FQVml6OUFYaDhQUUpYcGtxNTRtaVBRQTBRUGgzTGVCdVprdjZncjZ1dTR3V3k3N3I2bVZOZ25lSDdqL3puMFJ4MmxpQ1FvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0OTc2MjgwCWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuNS1iZXRhLjJfeDY0LXNldHVwLm5zaXMuemlwCjQ2ZERRdWFJTFdxVTR6WHNWTGRyZzVaWlk4SmQ3N2tTZ2hTU3IyY3c4NWlRYUpEZExtbjJXL1ZPVmw0Zys5K3ltVHVUNTRadXBJcVpjSjdNeG03QUNnPT0K",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNHpIUmFIbjFySFN5M1M4d1hRNW9SNG0vdXE2VDJvZXVobUJJNjNHRTRjWHBnYnp4aVZQUlk5TG9taEFrQ0h6SXBkTGdZRlBDMUhYbHlUb0p5OTc0OEFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0OTc2ODI4CWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuNS1iZXRhLjJfeDY0LXNldHVwLm5zaXMuemlwCnJoRm80bTVjMElrdXlCc1NlUCt0WkI0ZzltWUtxeTk4cGc4RXN6Q3lGSGZIZ3l2NFRac0k4ZWZIRjN6a0lIR0xSVG8yNXRYTis5dHN2bWRWNWp3WER3PT0K",
       "url": "https://gitee.com/huangyaowei2005/cumt_web_login/raw/beta/beta-assets/CUMTLogin-beta-1.20.5-beta.2-x64-setup.nsis.zip"
     }
   }

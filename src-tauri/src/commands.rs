@@ -16,6 +16,21 @@ pub async fn save_config(config_value: Config, _app_handle: tauri::AppHandle) ->
 }
 
 #[tauri::command]
+pub fn relaunch_as_admin(app_handle: tauri::AppHandle) -> Result<bool, String> {
+    let relaunched = config::relaunch_as_admin()?;
+
+    if relaunched {
+        let handle = app_handle.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(250));
+            handle.exit(0);
+        });
+    }
+
+    Ok(relaunched)
+}
+
+#[tauri::command]
 pub async fn check_connection() -> StatusResult {
     portal::check_connection().await
 }

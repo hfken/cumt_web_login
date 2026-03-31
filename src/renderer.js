@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const backToLoginBtn = document.getElementById('backToLoginBtn');
   const checkUpdateBtn = document.getElementById('checkUpdateBtn');
   const settingsError = document.getElementById('settingsError');
+  const ELEVATION_DRAFT_KEY = 'campus-login-elevation-draft';
 
   let overrideSuccessView = false;
   let wasConnected = null;
@@ -65,6 +66,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!settingsError) return;
     settingsError.style.color = '#dc2626';
     settingsError.classList.add('view-hidden');
+  }
+
+  function collectDraftConfig() {
+    return {
+      studentId: studentIdInput.value.trim(),
+      password: passwordInput.value,
+      operator: operatorSelect.value,
+      portalAddress: portalAddressInput ? portalAddressInput.value.trim() : '',
+      autoLogin: autoLoginCheck.checked,
+      checkInterval: parseInt(checkIntervalInput.value, 10) || 15,
+      autoCheck: autoCheckInput ? autoCheckInput.checked : true
+    };
+  }
+
+  function storeElevationDraft() {
+    localStorage.setItem(ELEVATION_DRAFT_KEY, JSON.stringify(collectDraftConfig()));
+  }
+
+  function consumeElevationDraft() {
+    const raw = localStorage.getItem(ELEVATION_DRAFT_KEY);
+    if (!raw) return null;
+
+    localStorage.removeItem(ELEVATION_DRAFT_KEY);
+
+    try {
+      return JSON.parse(raw);
+    } catch (error) {
+      console.warn('Failed to parse elevation draft:', error);
+      return null;
+    }
   }
 
   function parseVersion(version) {
@@ -283,6 +314,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  if (autoLoginCheck) {
+    autoLoginCheck.addEventListener('change', async () => {
+      if (!autoLoginCheck.checked) return;
+
+      storeElevationDraft();
+
+      try {
+        const relaunched = await invoke('relaunch_as_admin');
+        if (relaunched) {
+          showSettingsMessage('正在请求管理员权限并重启程序，请稍候...', 'info');
+        }
+      } catch (error) {
+        localStorage.removeItem(ELEVATION_DRAFT_KEY);
+        autoLoginCheck.checked = false;
+        showSettingsMessage(String(error), 'error');
+      }
+    });
+  }
+
   if (openSettingsBtn) {
     openSettingsBtn.addEventListener('click', () => {
       if (settingsView) settingsView.classList.remove('view-hidden');
@@ -378,6 +428,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   } catch (e) {
     console.error('Failed to load config', e);
+  }
+
+  const elevationDraft = consumeElevationDraft();
+  if (elevationDraft) {
+    studentIdInput.value = elevationDraft.studentId || '';
+    passwordInput.value = elevationDraft.password || '';
+    operatorSelect.value = elevationDraft.operator || 'cmcc';
+    if (portalAddressInput) portalAddressInput.value = elevationDraft.portalAddress || '';
+    autoLoginCheck.checked = !!elevationDraft.autoLogin;
+    if (autoCheckInput) autoCheckInput.checked = elevationDraft.autoCheck !== false;
+    if (checkIntervalInput) checkIntervalInput.value = elevationDraft.checkInterval || 15;
+    if (checkIntervalWrapper) {
+      if (elevationDraft.autoCheck === false) checkIntervalWrapper.classList.add('collapsed');
+      else checkIntervalWrapper.classList.remove('collapsed');
+    }
+    if (settingsView) settingsView.classList.remove('view-hidden');
+    showSettingsMessage('已切换为管理员模式，请点击“保存并返回”完成开机自启动设置。', 'info');
   }
 
   // Auto check connection

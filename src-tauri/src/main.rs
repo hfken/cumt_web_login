@@ -14,5 +14,8 @@ fn main() {
         std::process::exit(exit_code);
     }
 
+    #[cfg(target_os = "windows")]
+    services::config::maybe_wait_for_previous_instance();
+
     app::run();
 }

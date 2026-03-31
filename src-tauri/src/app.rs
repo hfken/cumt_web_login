@@ -19,6 +19,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             crate::commands::get_config,
             crate::commands::save_config,
+            crate::commands::relaunch_as_admin,
             crate::commands::check_connection,
             crate::commands::do_login,
             crate::commands::do_logout,

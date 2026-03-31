@@ -11,6 +11,8 @@ const AUTO_LOGIN_TASK_NAME: &str = "CampusNetworkAutoLogin";
 const ELEVATED_AUTOSTART_FLAG: &str = "--elevated-autostart";
 #[cfg(target_os = "windows")]
 const ELEVATED_AUTOSTART_TARGET_FLAG: &str = "--autostart-target";
+#[cfg(target_os = "windows")]
+const WAIT_FOR_PID_FLAG: &str = "--wait-for-pid";
 
 #[cfg(target_os = "windows")]
 #[derive(Clone, Copy)]
@@ -115,6 +117,52 @@ pub fn maybe_run_elevated_autostart_helper() -> Option<i32> {
 }
 
 #[cfg(target_os = "windows")]
+pub fn maybe_wait_for_previous_instance() {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE};
+
+    let mut args = std::env::args().skip(1);
+    while let Some(arg) = args.next() {
+        if arg == WAIT_FOR_PID_FLAG {
+            let Some(pid_arg) = args.next() else {
+                return;
+            };
+
+            let Ok(pid) = pid_arg.parse::<u32>() else {
+                return;
+            };
+
+            let handle = unsafe { OpenProcess(PROCESS_SYNCHRONIZE, 0, pid) };
+            if !handle.is_null() {
+                unsafe {
+                    WaitForSingleObject(handle, 10_000);
+                    CloseHandle(handle);
+                }
+            }
+            return;
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn maybe_wait_for_previous_instance() {}
+
+#[cfg(target_os = "windows")]
+pub fn relaunch_as_admin() -> Result<bool, String> {
+    if is_process_elevated()? {
+        return Ok(false);
+    }
+
+    run_elevated_full_app()?;
+    Ok(true)
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn relaunch_as_admin() -> Result<bool, String> {
+    Err("当前平台不支持管理员提权重启。".into())
+}
+
+#[cfg(target_os = "windows")]
 fn sync_auto_login(config: &Config) -> Result<(), String> {
     cleanup_legacy_auto_login_registry();
     let target_exe = std::env::current_exe().map_err(|error| error.to_string())?;
@@ -209,18 +257,17 @@ fn needs_elevation(message: &str) -> bool {
 }
 
 #[cfg(target_os = "windows")]
+fn run_elevated_full_app() -> Result<(), String> {
+    let current_pid = std::process::id();
+    let parameters = format!("{flag} {pid}", flag = WAIT_FOR_PID_FLAG, pid = current_pid);
+    runas_launch_current_exe(&parameters)
+}
+
+#[cfg(target_os = "windows")]
 fn run_elevated_autostart_helper(
     action: AutoLoginAction,
     target_exe: &Path,
 ) -> Result<(), String> {
-    use std::mem::size_of;
-    use std::ptr::{null, null_mut};
-    use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
-    use windows_sys::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject, INFINITE};
-    use windows_sys::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_FLAG_NO_UI, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW};
-    use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
-
-    let exe_path = std::env::current_exe().map_err(|error| error.to_string())?;
     let parameters = format!(
         "{flag} {action} {target_flag} \"{target}\"",
         flag = ELEVATED_AUTOSTART_FLAG,
@@ -229,20 +276,31 @@ fn run_elevated_autostart_helper(
         target = target_exe.to_string_lossy()
     );
 
+    runas_launch_current_exe(&parameters)?;
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn runas_launch_current_exe(parameters: &str) -> Result<(), String> {
+    use std::mem::size_of;
+    use std::ptr::{null, null_mut};
+    use windows_sys::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_FLAG_NO_UI, SHELLEXECUTEINFOW};
+    use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
+
+    let exe_path = std::env::current_exe().map_err(|error| error.to_string())?;
     let verb = to_wide("runas");
     let file = to_wide(&exe_path.to_string_lossy());
-    let params = to_wide(&parameters);
+    let params = to_wide(parameters);
 
     let mut execute_info: SHELLEXECUTEINFOW = unsafe { std::mem::zeroed() };
     execute_info.cbSize = size_of::<SHELLEXECUTEINFOW>() as u32;
-    execute_info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_NO_UI;
+    execute_info.fMask = SEE_MASK_FLAG_NO_UI;
     execute_info.hwnd = null_mut();
     execute_info.lpVerb = verb.as_ptr();
     execute_info.lpFile = file.as_ptr();
     execute_info.lpParameters = params.as_ptr();
     execute_info.lpDirectory = null();
     execute_info.nShow = SW_HIDE;
-    execute_info.hProcess = 0 as HANDLE;
 
     let success = unsafe { ShellExecuteExW(&mut execute_info) };
     if success == 0 {
@@ -253,22 +311,43 @@ fn run_elevated_autostart_helper(
         });
     }
 
-    if execute_info.hProcess.is_null() {
-        return Err("配置已保存，但管理员授权流程未返回有效进程，未能完成开机自启动设置。".into());
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn is_process_elevated() -> Result<bool, String> {
+    use std::mem::size_of;
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
+    use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+
+    let mut token_handle = std::ptr::null_mut();
+    let opened = unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token_handle) };
+    if opened == 0 {
+        return Err("无法读取当前进程权限状态。".into());
     }
 
-    let mut exit_code = 1u32;
+    let mut elevation = TOKEN_ELEVATION { TokenIsElevated: 0 };
+    let mut return_length = 0u32;
+    let result = unsafe {
+        GetTokenInformation(
+            token_handle,
+            TokenElevation,
+            &mut elevation as *mut _ as *mut _,
+            size_of::<TOKEN_ELEVATION>() as u32,
+            &mut return_length,
+        )
+    };
+
     unsafe {
-        WaitForSingleObject(execute_info.hProcess, INFINITE);
-        GetExitCodeProcess(execute_info.hProcess, &mut exit_code);
-        CloseHandle(execute_info.hProcess);
+        CloseHandle(token_handle);
     }
 
-    if exit_code == 0 {
-        Ok(())
-    } else {
-        Err("配置已保存，但管理员授权后的开机自启动设置仍然失败。".into())
+    if result == 0 {
+        return Err("无法检测当前是否为管理员模式。".into());
     }
+
+    Ok(elevation.TokenIsElevated != 0)
 }
 
 #[cfg(target_os = "windows")]
