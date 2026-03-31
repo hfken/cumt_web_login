@@ -4,6 +4,10 @@ param(
   [string]$Notes,
   [string]$Branch = "beta",
   [string]$AssetsDir = "beta-assets",
+  [Alias("UpdaterPublicKeyPath")]
+  [string]$UpdaterPublicKey,
+  [string]$PrivateKeyPath,
+  [string]$KeyPassword,
   [string]$CommitMessage,
   [switch]$Guided,
   [switch]$SkipBuild,
@@ -104,11 +108,37 @@ function Read-YesNoInput {
   }
 }
 
+function Read-SecretInput {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Prompt,
+    [string]$Default = ""
+  )
+
+  $hasDefault = -not [string]::IsNullOrWhiteSpace($Default)
+  $suffix = if ($hasDefault) { " [留空沿用已有值]" } else { "" }
+  $secureValue = Read-Host "$Prompt$suffix" -AsSecureString
+  $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureValue)
+
+  try {
+    $plainText = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+  } finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+  }
+
+  if ([string]::IsNullOrWhiteSpace($plainText)) {
+    return $Default
+  }
+
+  return $plainText
+}
+
 function Invoke-RepoCommand {
   param(
     [Parameter(Mandatory = $true)]
     [string]$Command,
-    [switch]$Mutable
+    [switch]$Mutable,
+    [hashtable]$EnvironmentVariables = @{}
   )
 
   Write-Host "PS> $Command" -ForegroundColor DarkGray
@@ -117,17 +147,124 @@ function Invoke-RepoCommand {
     return ""
   }
 
-  $output = & powershell -NoProfile -Command $Command 2>&1
-  if ($LASTEXITCODE -ne 0) {
-    throw ($output -join [Environment]::NewLine)
-  }
+  $previousEnvironment = @{}
 
-  return ($output -join [Environment]::NewLine).TrimEnd()
+  try {
+    foreach ($entry in $EnvironmentVariables.GetEnumerator()) {
+      $envName = [string]$entry.Key
+      if (Test-Path "Env:$envName") {
+        $previousEnvironment[$envName] = (Get-Item "Env:$envName").Value
+      } else {
+        $previousEnvironment[$envName] = $null
+      }
+
+      Set-Item -Path "Env:$envName" -Value ([string]$entry.Value)
+    }
+
+    $output = & powershell -NoProfile -Command $Command 2>&1
+    if ($LASTEXITCODE -ne 0) {
+      throw ($output -join [Environment]::NewLine)
+    }
+
+    return ($output -join [Environment]::NewLine).TrimEnd()
+  } finally {
+    foreach ($entry in $previousEnvironment.GetEnumerator()) {
+      if ($null -eq $entry.Value) {
+        Remove-Item -Path "Env:$($entry.Key)" -ErrorAction SilentlyContinue
+      } else {
+        Set-Item -Path "Env:$($entry.Key)" -Value $entry.Value
+      }
+    }
+  }
 }
 
 function Read-Utf8File {
   param([Parameter(Mandatory = $true)][string]$Path)
   return [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
+}
+
+function Get-EnvironmentValue {
+  param([Parameter(Mandatory = $true)][string]$Name)
+
+  $processValue = [Environment]::GetEnvironmentVariable($Name, [EnvironmentVariableTarget]::Process)
+  if (-not [string]::IsNullOrWhiteSpace($processValue)) {
+    return $processValue
+  }
+
+  $userValue = [Environment]::GetEnvironmentVariable($Name, [EnvironmentVariableTarget]::User)
+  if (-not [string]::IsNullOrWhiteSpace($userValue)) {
+    return $userValue
+  }
+
+  $machineValue = [Environment]::GetEnvironmentVariable($Name, [EnvironmentVariableTarget]::Machine)
+  if (-not [string]::IsNullOrWhiteSpace($machineValue)) {
+    return $machineValue
+  }
+
+  return ""
+}
+
+function Resolve-UpdaterPublicKeyValue {
+  param([string]$InputValue)
+
+  if ([string]::IsNullOrWhiteSpace($InputValue)) {
+    return ""
+  }
+
+  $trimmed = $InputValue.Trim()
+  $resolvedPath = $null
+
+  try {
+    $resolvedPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($trimmed)
+  } catch {
+    $resolvedPath = $null
+  }
+
+  if ($resolvedPath -and (Test-Path -LiteralPath $resolvedPath)) {
+    $publicKeyContent = (Read-Utf8File -Path $resolvedPath).TrimEnd("`r", "`n")
+    return [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($publicKeyContent))
+  }
+
+  try {
+    $decoded = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($trimmed))
+    if ($decoded -match "untrusted comment:\s*minisign public key") {
+      return $trimmed
+    }
+  } catch {
+  }
+
+  if ($trimmed -match "untrusted comment:\s*minisign public key") {
+    return [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($trimmed.TrimEnd("`r", "`n")))
+  }
+
+  throw "无法识别 updater 公钥输入：$InputValue。请优先传入有效的公钥文件路径；也兼容完整公钥文本或已经编码好的 pubkey。"
+}
+
+function Resolve-UpdaterPrivateKeyValue {
+  param([string]$InputValue)
+
+  if ([string]::IsNullOrWhiteSpace($InputValue)) {
+    return ""
+  }
+
+  $trimmed = $InputValue.Trim()
+  $resolvedPath = $null
+
+  try {
+    $resolvedPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($trimmed)
+  } catch {
+    $resolvedPath = $null
+  }
+
+  if ($resolvedPath -and (Test-Path -LiteralPath $resolvedPath)) {
+    return Read-Utf8File -Path $resolvedPath
+  }
+
+  if ($trimmed -match "untrusted comment:" -or $trimmed -match "RW[A-Za-z0-9+/=]") {
+    return $InputValue
+  }
+
+  throw "无法找到 updater 私钥文件：$InputValue。请传入有效的私钥文件路径，或直接传入完整私钥内容。"
 }
 
 function Write-Utf8File {
@@ -252,6 +389,23 @@ try {
     throw "Cargo.toml ($cargoVersion) 与 tauri.conf.json ($($tauriConfig.package.version)) 版本不一致。"
   }
 
+  $currentUpdaterPublicKey = [string]$tauriConfig.tauri.updater.pubkey
+  if ([string]::IsNullOrWhiteSpace($UpdaterPublicKey)) {
+    $UpdaterPublicKey = $currentUpdaterPublicKey
+  } else {
+    $UpdaterPublicKey = Resolve-UpdaterPublicKeyValue -InputValue $UpdaterPublicKey
+  }
+
+  if ([string]::IsNullOrWhiteSpace($PrivateKeyPath)) {
+    $PrivateKeyPath = Get-EnvironmentValue -Name "TAURI_PRIVATE_KEY"
+  } else {
+    $PrivateKeyPath = $PrivateKeyPath.Trim()
+  }
+
+  if ([string]::IsNullOrWhiteSpace($KeyPassword)) {
+    $KeyPassword = Get-EnvironmentValue -Name "TAURI_KEY_PASSWORD"
+  }
+
   $targetVersion = if ([string]::IsNullOrWhiteSpace($Version)) { $cargoVersion } else { $Version.Trim() }
 
   if ($guidedMode) {
@@ -260,6 +414,10 @@ try {
     Write-Host "当前分支: $currentBranch"
     Write-Host "当前版本: $cargoVersion"
     Write-Host ""
+
+    $UpdaterPublicKey = Read-DefaultInput -Prompt "0. 请输入 updater 公钥文件路径（也可直接粘贴公钥）" -Default $UpdaterPublicKey
+    $PrivateKeyPath = Read-DefaultInput -Prompt "0.1 请输入 updater 私钥路径（留空则沿用 TAURI_PRIVATE_KEY）" -Default $PrivateKeyPath
+    $KeyPassword = Read-SecretInput -Prompt "0.2 请输入 updater 私钥密码" -Default $KeyPassword
 
     $targetVersion = Read-DefaultInput -Prompt "1. 请输入本次 beta 版本号" -Default $targetVersion
 
@@ -288,6 +446,9 @@ try {
     Write-Host ""
     Write-Host "发布参数确认：" -ForegroundColor Cyan
     Write-Host "  版本号: $targetVersion"
+    Write-Host "  公钥文件/内容: $(if ([string]::IsNullOrWhiteSpace($UpdaterPublicKey)) { '未提供' } else { '已提供' })"
+    Write-Host "  私钥路径: $(if ([string]::IsNullOrWhiteSpace($PrivateKeyPath)) { '沿用 TAURI_PRIVATE_KEY' } else { $PrivateKeyPath })"
+    Write-Host "  私钥密码: $(if ([string]::IsNullOrWhiteSpace($KeyPassword)) { '未提供' } else { '已提供' })"
     Write-Host "  更新说明: $(if ([string]::IsNullOrWhiteSpace($Notes)) { '自动生成' } else { '自定义' })"
     Write-Host "  执行构建: $([bool](-not $SkipBuild))"
     Write-Host "  推送远端: $([bool](-not $NoPush))"
@@ -299,16 +460,53 @@ try {
     }
   }
 
+  if ([string]::IsNullOrWhiteSpace($UpdaterPublicKey)) {
+    throw "未提供 updater 公钥。请通过 -UpdaterPublicKey（或 -UpdaterPublicKeyPath）传入公钥文件路径/公钥内容，或在引导模式开始时输入。"
+  }
+
+  $privateKeyValue = ""
+  if (-not [string]::IsNullOrWhiteSpace($PrivateKeyPath)) {
+    $privateKeyValue = Resolve-UpdaterPrivateKeyValue -InputValue $PrivateKeyPath
+  }
+
+  $buildEnvironment = @{}
+  if (-not [string]::IsNullOrWhiteSpace($privateKeyValue)) {
+    $buildEnvironment["TAURI_PRIVATE_KEY"] = $privateKeyValue
+  }
+  if (-not [string]::IsNullOrWhiteSpace($KeyPassword)) {
+    $buildEnvironment["TAURI_KEY_PASSWORD"] = $KeyPassword
+  }
+
+  if (-not $SkipBuild) {
+    if ([string]::IsNullOrWhiteSpace($PrivateKeyPath)) {
+      throw "执行构建前需要 updater 私钥路径。请通过 -PrivateKeyPath 传入，或预先设置 TAURI_PRIVATE_KEY。"
+    }
+    if ([string]::IsNullOrWhiteSpace($KeyPassword)) {
+      throw "执行构建前需要 updater 私钥密码。请通过 -KeyPassword 传入，或预先设置 TAURI_KEY_PASSWORD。"
+    }
+  }
+
+  $tauriConfigChanged = $false
   if ($targetVersion -ne $cargoVersion) {
     Write-Step "更新 beta 版本到 $targetVersion"
     Set-CargoVersion -Path $cargoTomlPath -TargetVersion $targetVersion
     $tauriConfig.package.version = $targetVersion
+    $tauriConfigChanged = $true
+  }
+
+  if ($tauriConfig.tauri.updater.pubkey -ne $UpdaterPublicKey) {
+    Write-Step "更新 tauri.conf.json 中的 updater 公钥"
+    $tauriConfig.tauri.updater.pubkey = $UpdaterPublicKey
+    $tauriConfigChanged = $true
+  }
+
+  if ($tauriConfigChanged) {
     Write-Utf8File -Path $tauriConfigPath -Content (($tauriConfig | ConvertTo-Json -Depth 100))
   }
 
   if (-not $SkipBuild) {
-    Write-Step "构建 Tauri beta 安装包"
-    Invoke-RepoCommand -Command "npm run tauri build" -Mutable | Out-Host
+    Write-Step "执行编译并构建 Tauri beta 安装包"
+    Invoke-RepoCommand -Command "npm run tauri build" -Mutable -EnvironmentVariables $buildEnvironment | Out-Host
   } else {
     Write-Step "跳过构建，直接复用现有产物"
   }

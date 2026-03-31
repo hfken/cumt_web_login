@@ -35,13 +35,15 @@ pub fn run() {
         ])
         .setup(|app| {
             let args: Vec<String> = std::env::args().collect();
+            let saved_config = config::load_config();
+
+            config::refresh_auto_login(&saved_config);
 
             if args.iter().any(|arg| arg == "--hidden") {
                 if let Some(window) = app.get_window("main") {
                     let _ = window.hide();
                 }
 
-                let saved_config = config::load_config();
                 if saved_config.auto_login {
                     let app_handle = app.handle();
                     tauri::async_runtime::spawn(async move {

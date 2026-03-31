@@ -5,6 +5,9 @@ use directories::ProjectDirs;
 
 use crate::models::Config;
 
+#[cfg(target_os = "windows")]
+const AUTO_LOGIN_TASK_NAME: &str = "CampusNetworkAutoLogin";
+
 pub fn get_config_path() -> PathBuf {
     let mut fallback = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     fallback.push("config.json");
@@ -37,11 +40,79 @@ pub fn save_config(config: &Config) {
         let _ = fs::write(path, json);
     }
 
-    sync_auto_login_registry(config);
+    sync_auto_login(config);
+}
+
+pub fn refresh_auto_login(config: &Config) {
+    sync_auto_login(config);
 }
 
 #[cfg(target_os = "windows")]
-fn sync_auto_login_registry(config: &Config) {
+fn sync_auto_login(config: &Config) {
+    cleanup_legacy_auto_login_registry();
+
+    if config.auto_login {
+        let _ = create_auto_login_task();
+    } else {
+        let _ = delete_auto_login_task();
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn create_auto_login_task() -> Result<(), String> {
+    let task_run = format!(
+        "\"{}\" --hidden",
+        std::env::current_exe()
+            .map_err(|error| error.to_string())?
+            .to_string_lossy()
+    );
+
+    run_schtasks(&[
+        "/Create",
+        "/TN",
+        AUTO_LOGIN_TASK_NAME,
+        "/SC",
+        "ONLOGON",
+        "/TR",
+        &task_run,
+        "/IT",
+        "/F",
+    ])
+}
+
+#[cfg(target_os = "windows")]
+fn delete_auto_login_task() -> Result<(), String> {
+    run_schtasks(&["/Delete", "/TN", AUTO_LOGIN_TASK_NAME, "/F"])
+        .or_else(|error| match error.contains("cannot find the file specified") {
+            true => Ok(()),
+            false => Err(error),
+        })
+}
+
+#[cfg(target_os = "windows")]
+fn run_schtasks(args: &[&str]) -> Result<(), String> {
+    let output = std::process::Command::new("schtasks")
+        .args(args)
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let message = if !stderr.is_empty() { stderr } else { stdout };
+
+    Err(if message.is_empty() {
+        "schtasks 执行失败".into()
+    } else {
+        message
+    })
+}
+
+#[cfg(target_os = "windows")]
+fn cleanup_legacy_auto_login_registry() {
     use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_SET_VALUE};
     use winreg::RegKey;
 
@@ -51,20 +122,9 @@ fn sync_auto_login_registry(config: &Config) {
         "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
         KEY_SET_VALUE | KEY_READ,
     ) {
-        let exe_path = format!(
-            "\"{}\" --hidden",
-            std::env::current_exe()
-                .unwrap_or_default()
-                .to_string_lossy()
-        );
-
-        if config.auto_login {
-            let _ = run_key.set_value("CampusNetworkAutoLogin", &exe_path);
-        } else {
-            let _ = run_key.delete_value("CampusNetworkAutoLogin");
-        }
+        let _ = run_key.delete_value(AUTO_LOGIN_TASK_NAME);
     }
 }
 
 #[cfg(not(target_os = "windows"))]
-fn sync_auto_login_registry(_config: &Config) {}
+fn sync_auto_login(_config: &Config) {}
