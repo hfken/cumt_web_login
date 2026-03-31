@@ -292,6 +292,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (closeSettingsBtn) {
     closeSettingsBtn.addEventListener('click', () => {
+      handleSaveSettings().catch(error => {
+        console.error('Failed to save settings:', error);
+        showSettingsMessage(String(error), 'error');
+        closeSettingsBtn.disabled = false;
+        if (checkUpdateBtn) checkUpdateBtn.disabled = false;
+      });
+    });
+  }
+
+  async function handleSaveSettings() {
       const isAutoCheck = autoCheckInput ? autoCheckInput.checked : true;
       const intervalVal = parseInt(checkIntervalInput.value, 10);
       
@@ -305,7 +315,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       clearSettingsMessage();
-      if (settingsView) settingsView.classList.add('view-hidden');
+      closeSettingsBtn.disabled = true;
+      if (checkUpdateBtn) checkUpdateBtn.disabled = true;
       
       const newConfig = {
         studentId: studentIdInput.value.trim(),
@@ -317,9 +328,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         autoCheck: isAutoCheck
       };
       
-      if (typeof startHeartbeat === 'function') startHeartbeat(newConfig.checkInterval, newConfig.autoCheck);
-      invoke('save_config', { configValue: newConfig }).catch(console.error);
-    });
+      try {
+        await invoke('save_config', { configValue: newConfig });
+        if (typeof startHeartbeat === 'function') startHeartbeat(newConfig.checkInterval, newConfig.autoCheck);
+        if (settingsView) settingsView.classList.add('view-hidden');
+      } catch (error) {
+        showSettingsMessage(String(error), 'error');
+      } finally {
+        closeSettingsBtn.disabled = false;
+        if (checkUpdateBtn) checkUpdateBtn.disabled = false;
+      }
   }
 
   // Check Updates Logic

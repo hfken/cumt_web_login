@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use directories::ProjectDirs;
 
@@ -7,6 +7,35 @@ use crate::models::Config;
 
 #[cfg(target_os = "windows")]
 const AUTO_LOGIN_TASK_NAME: &str = "CampusNetworkAutoLogin";
+#[cfg(target_os = "windows")]
+const ELEVATED_AUTOSTART_FLAG: &str = "--elevated-autostart";
+#[cfg(target_os = "windows")]
+const ELEVATED_AUTOSTART_TARGET_FLAG: &str = "--autostart-target";
+
+#[cfg(target_os = "windows")]
+#[derive(Clone, Copy)]
+enum AutoLoginAction {
+    Enable,
+    Disable,
+}
+
+#[cfg(target_os = "windows")]
+impl AutoLoginAction {
+    fn as_arg(self) -> &'static str {
+        match self {
+            Self::Enable => "enable",
+            Self::Disable => "disable",
+        }
+    }
+
+    fn from_arg(value: &str) -> Option<Self> {
+        match value {
+            "enable" => Some(Self::Enable),
+            "disable" => Some(Self::Disable),
+            _ => None,
+        }
+    }
+}
 
 pub fn get_config_path() -> PathBuf {
     let mut fallback = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -33,38 +62,95 @@ pub fn load_config() -> Config {
     Config::default()
 }
 
-pub fn save_config(config: &Config) {
+pub fn save_config_with_result(config: &Config) -> Result<(), String> {
     let path = get_config_path();
 
     if let Ok(json) = serde_json::to_string_pretty(config) {
         let _ = fs::write(path, json);
     }
 
-    sync_auto_login(config);
+    sync_auto_login(config)
 }
 
 pub fn refresh_auto_login(config: &Config) {
-    sync_auto_login(config);
+    let _ = sync_auto_login(config);
 }
 
 #[cfg(target_os = "windows")]
-fn sync_auto_login(config: &Config) {
+pub fn maybe_run_elevated_autostart_helper() -> Option<i32> {
+    let mut args = std::env::args().skip(1);
+    if args.next().as_deref() != Some(ELEVATED_AUTOSTART_FLAG) {
+        return None;
+    }
+
+    let action = match args.next().as_deref().and_then(AutoLoginAction::from_arg) {
+        Some(action) => action,
+        None => return Some(2),
+    };
+
+    let mut target_exe = None;
+    while let Some(arg) = args.next() {
+        if arg == ELEVATED_AUTOSTART_TARGET_FLAG {
+            target_exe = args.next();
+            break;
+        }
+    }
+
+    let target_exe = target_exe
+        .map(PathBuf::from)
+        .or_else(|| std::env::current_exe().ok())
+        .unwrap_or_default();
+
     cleanup_legacy_auto_login_registry();
 
+    match apply_auto_login_action(action, &target_exe, false) {
+        Ok(()) => Some(0),
+        Err(_) => Some(1),
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn maybe_run_elevated_autostart_helper() -> Option<i32> {
+    None
+}
+
+#[cfg(target_os = "windows")]
+fn sync_auto_login(config: &Config) -> Result<(), String> {
+    cleanup_legacy_auto_login_registry();
+    let target_exe = std::env::current_exe().map_err(|error| error.to_string())?;
+
     if config.auto_login {
-        let _ = create_auto_login_task();
+        apply_auto_login_action(AutoLoginAction::Enable, &target_exe, true)
     } else {
-        let _ = delete_auto_login_task();
+        apply_auto_login_action(AutoLoginAction::Disable, &target_exe, true)
     }
 }
 
 #[cfg(target_os = "windows")]
-fn create_auto_login_task() -> Result<(), String> {
+fn apply_auto_login_action(
+    action: AutoLoginAction,
+    target_exe: &Path,
+    allow_elevation: bool,
+) -> Result<(), String> {
+    let result = match action {
+        AutoLoginAction::Enable => create_auto_login_task(target_exe),
+        AutoLoginAction::Disable => delete_auto_login_task(),
+    };
+
+    match result {
+        Ok(()) => Ok(()),
+        Err(message) if allow_elevation && needs_elevation(&message) => {
+            run_elevated_autostart_helper(action, target_exe)
+        }
+        Err(message) => Err(format_schtasks_error(&message)),
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn create_auto_login_task(target_exe: &Path) -> Result<(), String> {
     let task_run = format!(
         "\"{}\" --hidden",
-        std::env::current_exe()
-            .map_err(|error| error.to_string())?
-            .to_string_lossy()
+        target_exe.to_string_lossy()
     );
 
     run_schtasks(&[
@@ -91,8 +177,13 @@ fn delete_auto_login_task() -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 fn run_schtasks(args: &[&str]) -> Result<(), String> {
-    let output = std::process::Command::new("schtasks")
+    use std::os::windows::process::CommandExt;
+    use std::process::Command;
+    use windows_sys::Win32::System::Threading::CREATE_NO_WINDOW;
+
+    let output = Command::new("schtasks")
         .args(args)
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map_err(|error| error.to_string())?;
 
@@ -104,11 +195,105 @@ fn run_schtasks(args: &[&str]) -> Result<(), String> {
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let message = if !stderr.is_empty() { stderr } else { stdout };
 
-    Err(if message.is_empty() {
-        "schtasks 执行失败".into()
+    Err(message)
+}
+
+#[cfg(target_os = "windows")]
+fn needs_elevation(message: &str) -> bool {
+    let lower = message.trim().to_lowercase();
+
+    lower.contains("access is denied")
+        || lower.contains("拒绝访问")
+        || lower.contains("elevation")
+        || lower.contains("需要提升")
+}
+
+#[cfg(target_os = "windows")]
+fn run_elevated_autostart_helper(
+    action: AutoLoginAction,
+    target_exe: &Path,
+) -> Result<(), String> {
+    use std::mem::size_of;
+    use std::ptr::{null, null_mut};
+    use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+    use windows_sys::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject, INFINITE};
+    use windows_sys::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_FLAG_NO_UI, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW};
+    use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
+
+    let exe_path = std::env::current_exe().map_err(|error| error.to_string())?;
+    let parameters = format!(
+        "{flag} {action} {target_flag} \"{target}\"",
+        flag = ELEVATED_AUTOSTART_FLAG,
+        action = action.as_arg(),
+        target_flag = ELEVATED_AUTOSTART_TARGET_FLAG,
+        target = target_exe.to_string_lossy()
+    );
+
+    let verb = to_wide("runas");
+    let file = to_wide(&exe_path.to_string_lossy());
+    let params = to_wide(&parameters);
+
+    let mut execute_info: SHELLEXECUTEINFOW = unsafe { std::mem::zeroed() };
+    execute_info.cbSize = size_of::<SHELLEXECUTEINFOW>() as u32;
+    execute_info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_NO_UI;
+    execute_info.hwnd = null_mut();
+    execute_info.lpVerb = verb.as_ptr();
+    execute_info.lpFile = file.as_ptr();
+    execute_info.lpParameters = params.as_ptr();
+    execute_info.lpDirectory = null();
+    execute_info.nShow = SW_HIDE;
+    execute_info.hProcess = 0 as HANDLE;
+
+    let success = unsafe { ShellExecuteExW(&mut execute_info) };
+    if success == 0 {
+        let error_code = std::io::Error::last_os_error().raw_os_error().unwrap_or_default();
+        return Err(match error_code {
+            1223 => "配置已保存，但你取消了管理员授权，未能完成开机自启动设置。".into(),
+            _ => "配置已保存，但拉起管理员授权失败，未能完成开机自启动设置。".into(),
+        });
+    }
+
+    if execute_info.hProcess.is_null() {
+        return Err("配置已保存，但管理员授权流程未返回有效进程，未能完成开机自启动设置。".into());
+    }
+
+    let mut exit_code = 1u32;
+    unsafe {
+        WaitForSingleObject(execute_info.hProcess, INFINITE);
+        GetExitCodeProcess(execute_info.hProcess, &mut exit_code);
+        CloseHandle(execute_info.hProcess);
+    }
+
+    if exit_code == 0 {
+        Ok(())
     } else {
-        message
-    })
+        Err("配置已保存，但管理员授权后的开机自启动设置仍然失败。".into())
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn to_wide(value: &str) -> Vec<u16> {
+    value.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
+#[cfg(target_os = "windows")]
+fn format_schtasks_error(message: &str) -> String {
+    let normalized = message.trim();
+    let lower = normalized.to_lowercase();
+
+    if lower.contains("access is denied")
+        || lower.contains("拒绝访问")
+        || lower.contains("需要提升")
+        || lower.contains("elevation")
+    {
+        return "配置已保存，但创建开机自启动计划任务失败：当前权限不足。请用管理员模式重新打开程序后再试。".into();
+    }
+
+    if normalized.is_empty() {
+        "配置已保存，但执行 schtasks 失败，未能完成开机自启动设置。".into()
+    } else {
+        format!("配置已保存，但开机自启动设置失败：{}", normalized)
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -127,4 +312,6 @@ fn cleanup_legacy_auto_login_registry() {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn sync_auto_login(_config: &Config) {}
+fn sync_auto_login(_config: &Config) -> Result<(), String> {
+    Ok(())
+}

@@ -37,7 +37,10 @@ pub fn run() {
             let args: Vec<String> = std::env::args().collect();
             let saved_config = config::load_config();
 
-            config::refresh_auto_login(&saved_config);
+            let refresh_config = saved_config.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                config::refresh_auto_login(&refresh_config);
+            });
 
             if args.iter().any(|arg| arg == "--hidden") {
                 if let Some(window) = app.get_window("main") {
