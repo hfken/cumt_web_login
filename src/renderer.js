@@ -141,6 +141,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
   }
 
+  async function persistConfig(configValue) {
+    const normalizedConfig = normalizeConfig(configValue);
+    await invoke('save_config', { configValue: normalizedConfig });
+    config = normalizedConfig;
+    applyConfigToForm(config);
+    return config;
+  }
+
   function hasUnsavedSettings() {
     return JSON.stringify(normalizeConfig(collectDraftConfig())) !== JSON.stringify(normalizeConfig(config));
   }
@@ -311,7 +319,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (confirmOkBtn) {
     confirmOkBtn.addEventListener('click', async () => {
       if (!pendingLoginConfig) return;
-      const config = pendingLoginConfig;
+      const loginConfig = pendingLoginConfig;
       pendingLoginConfig = null;
       if (confirmView) confirmView.classList.add('view-hidden');
 
@@ -319,8 +327,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       loginBtn.textContent = '正在连接...';
       setStatus('正在顶替登录...', 'normal');
       try {
-        const result = await invoke('do_login', { configValue: config, force: true });
-        setStatus(result.message, result.success ? 'success' : 'error');
+        const result = await invoke('do_login', { configValue: loginConfig, force: true });
+        let statusType = result.success ? 'success' : 'error';
+        let statusMessageText = result.message;
+
+        if (result.success) {
+          try {
+            await persistConfig(loginConfig);
+          } catch (error) {
+            console.error('Failed to persist config after force login:', error);
+            statusType = 'error';
+            statusMessageText = `${result.message}，但保存本地配置失败：${String(error)}`;
+          }
+        }
+
+        setStatus(statusMessageText, statusType);
         if (result.success) {
           overrideSuccessView = false;
           showSuccessView();
@@ -469,9 +490,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const autoLoginChanged = previousConfig.autoLogin !== nextConfig.autoLogin;
       
       try {
-        await invoke('save_config', { configValue: newConfig });
-        config = { ...newConfig };
-        if (typeof startHeartbeat === 'function') startHeartbeat(newConfig.checkInterval, newConfig.autoCheck);
+        await persistConfig(newConfig);
+        if (typeof startHeartbeat === 'function') startHeartbeat(nextConfig.checkInterval, nextConfig.autoCheck);
         if (settingsView) settingsView.classList.add('view-hidden');
         showLoginView();
 
@@ -706,7 +726,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (confirmOnlineUser) confirmOnlineUser.textContent = result.onlineUser || '未知账号';
             if (confirmView) confirmView.classList.remove('view-hidden');
         } else {
-            setStatus(result.message, result.success ? 'success' : 'error');
+            let statusType = result.success ? 'success' : 'error';
+            let statusMessageText = result.message;
+
+            if (result.success) {
+                try {
+                    await persistConfig(newConfig);
+                } catch (error) {
+                    console.error('Failed to persist config after login:', error);
+                    statusType = 'error';
+                    statusMessageText = `${result.message}，但保存本地配置失败：${String(error)}`;
+                }
+            }
+
+            setStatus(statusMessageText, statusType);
             if (result.success) {
                 overrideSuccessView = false;
                 showSuccessView();

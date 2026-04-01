@@ -1,10 +1,10 @@
 {
   "version": "1.20.5-beta.2",
-  "notes": "增添了新特性，开机自启动优先级更高",
-  "pub_date": "2026-04-01T10:18:12Z",
+  "notes": "测试更新通道 beta 1.20.5-beta.2\n发布时间：2026-04-01T11:01:22Z\n本次构建由 scripts/publish-beta.ps1 自动发布。",
+  "pub_date": "2026-04-01T11:01:22Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDU2QVVzRk1GaERlOG9vQ1BwdVhkdTV3Y1hrSmdiOEkwZjlIc3Rub3VnWDZYM3VPWmw2SUtBYnpPS0tBYkhrQmY1NFVsQXMwbHdyNGJ5MURRQVg4QmdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc1MDM4NjkyCWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuNS1iZXRhLjJfeDY0LXNldHVwLm5zaXMuemlwCk50b2hESTg3YnRMRk13MUVNbEJCUUhIcWRLMFBvM0pjYUZURTI4VmFLVjVncFN6TkplUm1YNzdNbDJPS2pVcE4vUjhNbVBMQW5JS09oUkZwclJMR0FBPT0K",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDFvY0xnRllGRXNiNUFFY2NwcjlWMFVQQWdWVG93WFRiaktkektEQ1c4UFN5azFBNURJL0F6c0hUL3VBN3h4S1dmSS90VTNPbi9aQnl2VUEvS3BKandjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc1MDQxMjgyCWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuNS1iZXRhLjJfeDY0LXNldHVwLm5zaXMuemlwCklZSit2cE45MDltdlRzQzd4Vy9mSTlGdFdTdTdobUJzZWFaTk5HWUl2OEl3cXFmMVdYVHovUkgwSTRXM2s2ckNaN1lZNFNhRkgrWDVyckJoeFQ0NUNRPT0K",
       "url": "https://gitee.com/huangyaowei2005/cumt_web_login/raw/beta/beta-assets/CUMTLogin-beta-1.20.5-beta.2-x64-setup.nsis.zip"
     }
   }
