@@ -158,6 +158,31 @@
       </div>
     </div>
 
+    <div id="clearConfigConfirmView" class="view-hidden overlay-view">
+      <div class="settings-header">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <h2 style="margin: 0;">确认清空配置</h2>
+        </div>
+      </div>
+      <div class="settings-content">
+        <p style="font-size: 13px; color: var(--taupe-700); line-height: 1.8;">
+          这会删除当前设备里保存的学号、密码、运营商和偏好设置。<br><br>
+          当前已经联网的状态不会被强制断开，现有开机自启任务也会保留。<br><br>
+          确认要继续清空吗？
+        </p>
+      </div>
+      <div style="display: flex; gap: 12px; margin-top: auto; flex: none;">
+        <button id="clearConfigConfirmCancelBtn" class="secondary-btn" style="flex: 1; padding: 12px 0;">取消</button>
+        <button id="clearConfigConfirmOkBtn" class="primary-btn confirm-danger-btn" style="flex: 1.4; padding: 12px 0;">确认清空</button>
+      </div>
+    </div>
+
     <!-- Settings Overlay -->
     <div id="settingsView" class="view-hidden overlay-view">
       <div class="settings-header settings-header-row">

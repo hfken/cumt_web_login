@@ -53,6 +53,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const unsavedConfirmView = document.getElementById('unsavedConfirmView');
   const unsavedConfirmCancelBtn = document.getElementById('unsavedConfirmCancelBtn');
   const unsavedConfirmOkBtn = document.getElementById('unsavedConfirmOkBtn');
+  const clearConfigConfirmView = document.getElementById('clearConfigConfirmView');
+  const clearConfigConfirmCancelBtn = document.getElementById('clearConfigConfirmCancelBtn');
+  const clearConfigConfirmOkBtn = document.getElementById('clearConfigConfirmOkBtn');
 
   const updateBanner = document.getElementById('updateBanner');
   const updateBannerTitle = document.getElementById('updateBannerTitle');
@@ -94,6 +97,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       checkInterval: 15,
       autoCheck: true
     };
+  }
+
+  async function refreshConfigFromBackend({ applyToForm = false } = {}) {
+    try {
+      const latestConfig = await invoke('get_config');
+      config = normalizeConfig(latestConfig);
+      if (applyToForm) {
+        applyConfigToForm(config);
+      }
+      return config;
+    } catch (error) {
+      console.error('Failed to load config', error);
+      throw error;
+    }
   }
 
   function applyConfigToForm(configValue) {
@@ -361,10 +378,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  if (openSettingsBtn) {
-    openSettingsBtn.addEventListener('click', () => {
+  if (clearConfigConfirmCancelBtn) {
+    clearConfigConfirmCancelBtn.addEventListener('click', () => {
+      if (clearConfigConfirmView) clearConfigConfirmView.classList.add('view-hidden');
       if (settingsView) settingsView.classList.remove('view-hidden');
+    });
+  }
+
+  if (clearConfigConfirmOkBtn) {
+    clearConfigConfirmOkBtn.addEventListener('click', () => {
+      if (clearConfigConfirmView) clearConfigConfirmView.classList.add('view-hidden');
+      performClearConfig();
+    });
+  }
+
+  if (openSettingsBtn) {
+    openSettingsBtn.addEventListener('click', async () => {
+      openSettingsBtn.disabled = true;
       clearSettingsMessage();
+
+      try {
+        await refreshConfigFromBackend({ applyToForm: true });
+        if (settingsView) settingsView.classList.remove('view-hidden');
+      } catch (error) {
+        setStatus(`读取设置失败：${String(error)}`, 'error');
+      } finally {
+        openSettingsBtn.disabled = false;
+      }
     });
   }
 
@@ -393,13 +433,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (clearConfigBtn) {
     clearConfigBtn.addEventListener('click', () => {
-      handleClearConfig().catch(error => {
-        console.error('Failed to clear config:', error);
-        showSettingsMessage(String(error), 'error');
-        clearConfigBtn.disabled = false;
-        closeSettingsBtn.disabled = false;
-        if (checkUpdateBtn) checkUpdateBtn.disabled = false;
-      });
+      handleClearConfig();
     });
   }
 
@@ -468,10 +502,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
   }
 
-  async function handleClearConfig() {
-      const confirmed = window.confirm('这会清空本地保存的学号、密码和其他设置，确定继续吗？');
-      if (!confirmed) return;
+  function handleClearConfig() {
+      clearSettingsMessage();
+      if (clearConfigConfirmView) clearConfigConfirmView.classList.remove('view-hidden');
+  }
 
+  async function performClearConfig() {
       clearSettingsMessage();
       if (clearConfigBtn) clearConfigBtn.disabled = true;
       closeSettingsBtn.disabled = true;
@@ -519,10 +555,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load Config
   let config = getDefaultConfig();
   try {
-    config = await invoke('get_config');
-    applyConfigToForm(config);
-  } catch (e) {
-    console.error('Failed to load config', e);
+    await refreshConfigFromBackend({ applyToForm: true });
+  } catch (error) {
+    config = getDefaultConfig();
   }
 
   // Auto check connection
