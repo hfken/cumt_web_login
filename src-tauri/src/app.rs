@@ -20,6 +20,7 @@ pub fn run() {
             crate::commands::get_config,
             crate::commands::save_config,
             crate::commands::clear_config,
+            crate::commands::sync_auto_login_settings,
             crate::commands::relaunch_as_admin,
             crate::commands::check_connection,
             crate::commands::do_login,
@@ -52,8 +53,8 @@ pub fn run() {
                 if saved_config.auto_login {
                     let app_handle = app.handle();
                     tauri::async_runtime::spawn(async move {
-                        let _ =
-                            crate::services::portal::login(saved_config, app_handle, true).await;
+                        crate::services::portal::run_startup_auto_login(saved_config, app_handle)
+                            .await;
                     });
                 }
             } else {

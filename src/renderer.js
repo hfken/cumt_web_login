@@ -485,9 +485,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         checkInterval: intervalVal,
         autoCheck: isAutoCheck
       };
-      const previousConfig = normalizeConfig(config);
       const nextConfig = normalizeConfig(newConfig);
-      const autoLoginChanged = previousConfig.autoLogin !== nextConfig.autoLogin;
       
       try {
         await persistConfig(newConfig);
@@ -495,24 +493,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (settingsView) settingsView.classList.add('view-hidden');
         showLoginView();
 
-        if (autoLoginChanged) {
-          try {
-            const relaunched = await invoke('relaunch_as_admin');
-            if (relaunched) {
-              setStatus('设置已保存，正在请求管理员权限并重启程序以完成开机自启动配置...', 'normal');
-              return;
-            }
-
-            setStatus('设置已保存，正在重启程序以完成开机自启动配置...', 'normal');
-            invoke('restart_app').catch(console.error);
-            return;
-          } catch (error) {
-            setStatus(`设置已保存，但未完成开机自启动更新：${String(error)}`, 'error');
-            return;
-          }
-        }
-
-        setStatus('设置已保存', 'success');
+        const syncResult = await invoke('sync_auto_login_settings', { configValue: nextConfig });
+        setStatus(syncResult?.message || '设置已保存', syncResult?.relaunched ? 'normal' : 'success');
       } catch (error) {
         showSettingsMessage(String(error), 'error');
       } finally {

@@ -3,16 +3,81 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use reqwest::Client;
 use serde_json::Value;
 use tauri::AppHandle;
+use tokio::time::sleep;
 
 use crate::models::{Config, LoginResult, StatusResult};
 use crate::services::{config, system};
 
 const DEFAULT_CAMPUS_HOST: &str = "10.2.5.251";
 const DEFAULT_PORTAL_ORIGIN: &str = "http://10.2.5.251:801";
+const STARTUP_AUTO_LOGIN_ATTEMPTS: usize = 10;
+const STARTUP_AUTO_LOGIN_RETRY_DELAY: Duration = Duration::from_secs(5);
+const STARTUP_AUTO_LOGIN_TITLE: &str = "校园网自动登录";
 
 struct PortalEndpoints {
     status_origin: String,
     portal_origin: String,
+}
+
+pub async fn run_startup_auto_login(config: Config, app_handle: AppHandle) {
+    if !config.auto_login || config.student_id.trim().is_empty() || config.password.is_empty() {
+        return;
+    }
+
+    for attempt in 0..STARTUP_AUTO_LOGIN_ATTEMPTS {
+        let result = login(config.clone(), app_handle.clone(), false).await;
+
+        if result.success {
+            return;
+        }
+
+        if result.needs_confirm {
+            let online_user = if result.online_user.trim().is_empty() {
+                "其他账号".into()
+            } else {
+                result.online_user.clone()
+            };
+
+            system::show_notification(
+                &app_handle,
+                STARTUP_AUTO_LOGIN_TITLE,
+                &format!(
+                    "检测到 {} 已在线，已跳过本次开机自动登录，避免自动顶号。",
+                    online_user
+                ),
+            );
+            return;
+        }
+
+        if is_invalid_credentials_message(&result.message) {
+            system::show_notification(
+                &app_handle,
+                STARTUP_AUTO_LOGIN_TITLE,
+                "保存的学号或密码无效，已停止本次开机自动登录，请打开主窗口检查。",
+            );
+            return;
+        }
+
+        if !is_retryable_startup_failure(&result) {
+            system::show_notification(
+                &app_handle,
+                STARTUP_AUTO_LOGIN_TITLE,
+                &format!("开机自动登录失败：{}", result.message),
+            );
+            return;
+        }
+
+        if attempt + 1 == STARTUP_AUTO_LOGIN_ATTEMPTS {
+            system::show_notification(
+                &app_handle,
+                STARTUP_AUTO_LOGIN_TITLE,
+                "开机后网络暂未就绪，自动登录已停止重试。请稍后打开主窗口手动重试。",
+            );
+            return;
+        }
+
+        sleep(STARTUP_AUTO_LOGIN_RETRY_DELAY).await;
+    }
 }
 
 pub async fn check_connection() -> StatusResult {
@@ -289,4 +354,16 @@ fn resolve_endpoints(config: &Config) -> PortalEndpoints {
         status_origin: format!("http://{}", DEFAULT_CAMPUS_HOST),
         portal_origin: DEFAULT_PORTAL_ORIGIN.into(),
     }
+}
+
+fn is_invalid_credentials_message(message: &str) -> bool {
+    message.contains("账号密码错误")
+}
+
+fn is_retryable_startup_failure(result: &LoginResult) -> bool {
+    !result.success
+        && !result.needs_confirm
+        && (result.message.contains("网络请求失败")
+            || result.message.contains("无法连接校园网服务器")
+            || result.message.contains("未登录"))
 }

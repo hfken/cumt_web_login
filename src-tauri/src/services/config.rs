@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use directories::ProjectDirs;
 
-use crate::models::{ClearConfigResult, Config};
+use crate::models::{AutoLoginSyncResult, ClearConfigResult, Config};
 
 #[cfg(target_os = "windows")]
 const AUTO_LOGIN_TASK_NAME: &str = "CampusNetworkAutoLogin";
@@ -19,6 +19,14 @@ const WAIT_FOR_PID_FLAG: &str = "--wait-for-pid";
 enum AutoLoginAction {
     Enable,
     Disable,
+}
+
+#[cfg(target_os = "windows")]
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AutoLoginTaskState {
+    Missing,
+    UpToDate,
+    Mismatched,
 }
 
 #[cfg(target_os = "windows")]
@@ -66,8 +74,8 @@ pub fn load_config() -> Config {
 
 pub fn save_config_with_result(config: &Config) -> Result<(), String> {
     let path = get_config_path();
-    let json =
-        serde_json::to_string_pretty(config).map_err(|error| format!("序列化配置失败：{}", error))?;
+    let json = serde_json::to_string_pretty(config)
+        .map_err(|error| format!("序列化配置失败：{}", error))?;
     fs::write(path, json).map_err(|error| format!("保存配置失败：{}", error))?;
 
     Ok(())
@@ -85,6 +93,55 @@ pub fn clear_config_with_result() -> Result<ClearConfigResult, String> {
         cleared: true,
         message: "已清空本地保存的账号配置，原有开机自启动设置保持不变。".into(),
     })
+}
+
+pub fn sync_auto_login_settings(config: &Config) -> Result<AutoLoginSyncResult, String> {
+    #[cfg(target_os = "windows")]
+    {
+        cleanup_legacy_auto_login_registry();
+        let target_exe = std::env::current_exe().map_err(|error| error.to_string())?;
+        let needs_sync = needs_auto_login_sync(config, &target_exe)?;
+
+        if !needs_sync {
+            return Ok(AutoLoginSyncResult {
+                synced: true,
+                relaunched: false,
+                message: "设置已保存".into(),
+            });
+        }
+
+        if is_process_elevated()? {
+            sync_auto_login(config, false)?;
+            let message = if config.auto_login {
+                "设置已保存，已更新开机自启动配置。"
+            } else {
+                "设置已保存，已关闭开机自启动。"
+            };
+
+            return Ok(AutoLoginSyncResult {
+                synced: true,
+                relaunched: false,
+                message: message.into(),
+            });
+        }
+
+        run_elevated_full_app()?;
+        return Ok(AutoLoginSyncResult {
+            synced: false,
+            relaunched: true,
+            message: "设置已保存，正在请求管理员权限并重启程序以完成开机自启动配置...".into(),
+        });
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = config;
+        Ok(AutoLoginSyncResult {
+            synced: true,
+            relaunched: false,
+            message: "设置已保存".into(),
+        })
+    }
 }
 
 pub fn refresh_auto_login(config: &Config) {
@@ -143,7 +200,9 @@ pub fn maybe_run_elevated_autostart_helper() -> Option<i32> {
 #[cfg(target_os = "windows")]
 pub fn maybe_wait_for_previous_instance() {
     use windows_sys::Win32::Foundation::CloseHandle;
-    use windows_sys::Win32::System::Threading::{OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE};
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE,
+    };
 
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -199,6 +258,91 @@ fn sync_auto_login(config: &Config, allow_elevation: bool) -> Result<(), String>
 }
 
 #[cfg(target_os = "windows")]
+fn needs_auto_login_sync(config: &Config, target_exe: &Path) -> Result<bool, String> {
+    let task_state = inspect_auto_login_task(target_exe)?;
+
+    if config.auto_login {
+        Ok(task_state != AutoLoginTaskState::UpToDate)
+    } else {
+        Ok(task_state != AutoLoginTaskState::Missing)
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn inspect_auto_login_task(target_exe: &Path) -> Result<AutoLoginTaskState, String> {
+    let xml = match query_auto_login_task_xml() {
+        Ok(xml) => xml,
+        Err(message) if is_missing_task_error(&message) => return Ok(AutoLoginTaskState::Missing),
+        Err(message) => return Err(format_schtasks_error(&message)),
+    };
+
+    let command = extract_xml_tag(&xml, "Command").unwrap_or_default();
+    let arguments = extract_xml_tag(&xml, "Arguments").unwrap_or_default();
+
+    if is_expected_auto_login_task(&command, &arguments, target_exe) {
+        Ok(AutoLoginTaskState::UpToDate)
+    } else {
+        Ok(AutoLoginTaskState::Mismatched)
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn query_auto_login_task_xml() -> Result<String, String> {
+    run_schtasks_output(&["/Query", "/TN", AUTO_LOGIN_TASK_NAME, "/XML"])
+}
+
+#[cfg(target_os = "windows")]
+fn is_missing_task_error(message: &str) -> bool {
+    let lower = message.to_lowercase();
+
+    lower.contains("cannot find the file specified")
+        || lower.contains("cannot find the path specified")
+        || lower.contains("the system cannot find")
+        || message.contains("找不到指定的文件")
+        || message.contains("系统找不到指定的文件")
+        || message.contains("找不到指定的路径")
+}
+
+#[cfg(target_os = "windows")]
+fn is_expected_auto_login_task(command: &str, arguments: &str, target_exe: &Path) -> bool {
+    normalize_windows_path(command) == normalize_windows_path(&target_exe.to_string_lossy())
+        && normalize_task_arguments(arguments) == "--hidden"
+}
+
+#[cfg(target_os = "windows")]
+fn normalize_windows_path(value: &str) -> String {
+    value
+        .trim()
+        .trim_matches('"')
+        .replace('/', "\\")
+        .to_lowercase()
+}
+
+#[cfg(target_os = "windows")]
+fn normalize_task_arguments(value: &str) -> String {
+    value.trim().trim_matches('"').to_string()
+}
+
+#[cfg(target_os = "windows")]
+fn extract_xml_tag(xml: &str, tag_name: &str) -> Option<String> {
+    let open_tag = format!("<{}>", tag_name);
+    let close_tag = format!("</{}>", tag_name);
+    let start = xml.find(&open_tag)? + open_tag.len();
+    let end = xml[start..].find(&close_tag)? + start;
+    Some(xml_unescape(&xml[start..end]))
+}
+
+#[cfg(target_os = "windows")]
+fn xml_unescape(value: &str) -> String {
+    value
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&amp;", "&")
+}
+
+#[cfg(target_os = "windows")]
 fn apply_auto_login_action(
     action: AutoLoginAction,
     target_exe: &Path,
@@ -220,10 +364,7 @@ fn apply_auto_login_action(
 
 #[cfg(target_os = "windows")]
 fn create_auto_login_task(target_exe: &Path) -> Result<(), String> {
-    let task_run = format!(
-        "\"{}\" --hidden",
-        target_exe.to_string_lossy()
-    );
+    let task_run = format!("\"{}\" --hidden", target_exe.to_string_lossy());
 
     run_schtasks(&[
         "/Create",
@@ -240,15 +381,21 @@ fn create_auto_login_task(target_exe: &Path) -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 fn delete_auto_login_task() -> Result<(), String> {
-    run_schtasks(&["/Delete", "/TN", AUTO_LOGIN_TASK_NAME, "/F"])
-        .or_else(|error| match error.contains("cannot find the file specified") {
+    run_schtasks(&["/Delete", "/TN", AUTO_LOGIN_TASK_NAME, "/F"]).or_else(|error| {
+        match error.contains("cannot find the file specified") {
             true => Ok(()),
             false => Err(error),
-        })
+        }
+    })
 }
 
 #[cfg(target_os = "windows")]
 fn run_schtasks(args: &[&str]) -> Result<(), String> {
+    run_schtasks_output(args).map(|_| ())
+}
+
+#[cfg(target_os = "windows")]
+fn run_schtasks_output(args: &[&str]) -> Result<String, String> {
     use std::os::windows::process::CommandExt;
     use std::process::Command;
     use windows_sys::Win32::System::Threading::CREATE_NO_WINDOW;
@@ -259,12 +406,13 @@ fn run_schtasks(args: &[&str]) -> Result<(), String> {
         .output()
         .map_err(|error| error.to_string())?;
 
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     if output.status.success() {
-        return Ok(());
+        return Ok(stdout);
     }
 
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stdout = stdout.trim().to_string();
     let message = if !stderr.is_empty() { stderr } else { stdout };
 
     Err(message)
@@ -288,10 +436,7 @@ fn run_elevated_full_app() -> Result<(), String> {
 }
 
 #[cfg(target_os = "windows")]
-fn run_elevated_autostart_helper(
-    action: AutoLoginAction,
-    target_exe: &Path,
-) -> Result<(), String> {
+fn run_elevated_autostart_helper(action: AutoLoginAction, target_exe: &Path) -> Result<(), String> {
     let parameters = format!(
         "{flag} {action} {target_flag} \"{target}\"",
         flag = ELEVATED_AUTOSTART_FLAG,
@@ -328,7 +473,9 @@ fn runas_launch_current_exe(parameters: &str) -> Result<(), String> {
 
     let success = unsafe { ShellExecuteExW(&mut execute_info) };
     if success == 0 {
-        let error_code = std::io::Error::last_os_error().raw_os_error().unwrap_or_default();
+        let error_code = std::io::Error::last_os_error()
+            .raw_os_error()
+            .unwrap_or_default();
         return Err(match error_code {
             1223 => "配置已保存，但你取消了管理员授权，未能完成开机自启动设置。".into(),
             _ => "配置已保存，但拉起管理员授权失败，未能完成开机自启动设置。".into(),
@@ -342,7 +489,9 @@ fn runas_launch_current_exe(parameters: &str) -> Result<(), String> {
 fn is_process_elevated() -> Result<bool, String> {
     use std::mem::size_of;
     use windows_sys::Win32::Foundation::CloseHandle;
-    use windows_sys::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
+    use windows_sys::Win32::Security::{
+        GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY,
+    };
     use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
     let mut token_handle = std::ptr::null_mut();

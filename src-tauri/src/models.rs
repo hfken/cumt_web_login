@@ -80,3 +80,11 @@ pub struct ClearConfigResult {
     pub cleared: bool,
     pub message: String,
 }
+
+#[derive(Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AutoLoginSyncResult {
+    pub synced: bool,
+    pub relaunched: bool,
+    pub message: String,
+}
