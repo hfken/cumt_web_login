@@ -116,6 +116,15 @@ pub fn sync_auto_login_settings(config: &Config) -> Result<AutoLoginSyncResult, 
             });
         }
 
+        if !is_process_elevated()? {
+            run_elevated_sync_auto_login(config, &target_exe)?;
+            return Ok(AutoLoginSyncResult {
+                synced: false,
+                relaunched: false,
+                message: "设置已保存，正在请求管理员权限以完成开机自启动计划任务配置...".into(),
+            });
+        }
+
         let sync_outcome = sync_auto_login(config, true)?;
 
         let (synced, message) = match sync_outcome {
@@ -441,6 +450,17 @@ fn run_elevated_full_app() -> Result<(), String> {
     let current_pid = std::process::id();
     let parameters = format!("{flag} {pid}", flag = WAIT_FOR_PID_FLAG, pid = current_pid);
     runas_launch_current_exe(&parameters)
+}
+
+#[cfg(target_os = "windows")]
+fn run_elevated_sync_auto_login(config: &Config, target_exe: &Path) -> Result<(), String> {
+    let action = if config.auto_login {
+        AutoLoginAction::Enable
+    } else {
+        AutoLoginAction::Disable
+    };
+
+    run_elevated_autostart_helper(action, target_exe)
 }
 
 #[cfg(target_os = "windows")]
