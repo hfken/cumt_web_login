@@ -1,11 +1,11 @@
 {
-  "version": "1.20.5-beta.3.4",
-  "notes": "测试更新通道 beta 1.20.5-beta.3.4\n发布时间：2026-04-04T10:04:07Z\n本次构建由 scripts/publish-beta.ps1 自动发布。",
-  "pub_date": "2026-04-04T10:04:07Z",
+  "version": "1.21.1-beta.1",
+  "notes": "优化了设置页面的UI显示体验",
+  "pub_date": "2026-04-04T11:04:19Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNHduVHBpTkpqOGI0cnVZcnk5R0Yrem9ROFlMMGx4TFpTcEh6azVnR01CT2w2NklWeG5yNEdaMUtsN1cvOGt2bEVORDAyQkVPTVpsV0MvREZIZFhUaFE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc1Mjk3MDQ3CWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuNS1iZXRhLjMuNF94NjQtc2V0dXAubnNpcy56aXAKcUdHT2l6TFJBbzBBYTVZOXZaUHFwNldlMXAwTmQxc2hSSDdCYW5VVGNaeXM4SW9OMnA0TnZmSm9nY09mVnBzSVVWVEZwVzBPU2NuUzltenMzQWQ2QWc9PQo=",
-      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/raw/beta/beta-assets/CUMTLogin-beta-1.20.5-beta.3.4-x64-setup.nsis.zip"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNHpMY21XNUhpN0wxNm5jTGozK0ViQzZmcVE1c29IOGpHdHVlbER3TGNSMFVvQUttdUphcXFvRE5HcmJMSjJmN0RqSlVGKytRMEwvS2VQRmV0N1UzS2dFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc1MzAwNjU5CWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjEuMS1iZXRhLjFfeDY0LXNldHVwLm5zaXMuemlwCjVneUFmVW42RDlxVmlmeXo3em0wRWN1ZFUxS1dkWDN3UkF2TnBBb3RpNEtPUlhRTDVCT0ZyUU92UUlzTUFMWEVCL1FSRHlOK1luczh0UysvRXhDaUFnPT0K",
+      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/raw/beta/beta-assets/CUMTLogin-beta-1.21.1-beta.1-x64-setup.nsis.zip"
     }
   }
 }
