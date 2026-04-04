@@ -19,6 +19,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             crate::commands::get_config,
             crate::commands::save_config,
+            crate::commands::clear_config,
+            crate::commands::sync_auto_login_settings,
+            crate::commands::relaunch_as_admin,
             crate::commands::check_connection,
             crate::commands::do_login,
             crate::commands::do_logout,
@@ -28,23 +31,30 @@ pub fn run() {
             crate::commands::check_for_updates,
             crate::commands::install_update,
             crate::commands::get_beta_installer_info,
+            crate::commands::get_stable_installer_info,
             crate::commands::install_beta_update,
+            crate::commands::install_stable_update,
             crate::commands::restart_app
         ])
         .setup(|app| {
             let args: Vec<String> = std::env::args().collect();
+            let saved_config = config::load_config();
+
+            let refresh_config = saved_config.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                config::refresh_auto_login(&refresh_config);
+            });
 
             if args.iter().any(|arg| arg == "--hidden") {
                 if let Some(window) = app.get_window("main") {
                     let _ = window.hide();
                 }
 
-                let saved_config = config::load_config();
                 if saved_config.auto_login {
                     let app_handle = app.handle();
                     tauri::async_runtime::spawn(async move {
-                        let _ =
-                            crate::services::portal::login(saved_config, app_handle, true).await;
+                        crate::services::portal::run_startup_auto_login(saved_config, app_handle)
+                            .await;
                     });
                 }
             } else {

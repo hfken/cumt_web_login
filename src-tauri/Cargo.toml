@@ -1,6 +1,6 @@
 [package]
 name = "cumt_login"
-version = "1.20.4"
+version = "1.20.5"
 description = "中国矿业大学校园网自动登录"
 authors = ["CUMT"]
 edition = "2021"
@@ -16,10 +16,19 @@ reqwest = { version = "0.11", features = ["json", "blocking"] }
 urlencoding = "2.1"
 directories = "5.0"
 fastrand = "2.0"
+tokio = { version = "1", features = ["time"] }
 tauri-plugin-single-instance = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_System_Registry",
+  "Win32_Security",
+  "Win32_System_Threading",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
 
 [features]
 default = ["custom-protocol"]

@@ -1,5 +1,7 @@
 const { invoke } = window.__TAURI__.tauri;
+const { app } = window.__TAURI__;
 const { appWindow, WebviewWindow } = window.__TAURI__.window;
+
 document.addEventListener('contextmenu', e => {
   if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
     e.preventDefault();
@@ -23,6 +25,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const settingsView = document.getElementById('settingsView');
   const openSettingsBtn = document.getElementById('openSettingsBtn');
   const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+  const clearConfigBtn = document.getElementById('clearConfigBtn');
+  const settingsBackBtn = document.getElementById('settingsBackBtn');
   const checkIntervalInput = document.getElementById('checkInterval');
   const checkIntervalWrapper = document.getElementById('checkIntervalWrapper');
   const autoCheckInput = document.getElementById('autoCheck');
@@ -39,22 +43,190 @@ document.addEventListener('DOMContentLoaded', async () => {
   let pendingLoginConfig = null;
   let lastUpdateInfo = null;
   let notifiedUpdateVersion = null;
+  let isBetaBuild = false;
+  const startupVersion = await getCurrentVersion();
+  isBetaBuild = String(startupVersion).includes('-beta');
 
   const confirmView = document.getElementById('confirmView');
   const confirmOnlineUser = document.getElementById('confirmOnlineUser');
   const confirmCancelBtn = document.getElementById('confirmCancelBtn');
   const confirmOkBtn = document.getElementById('confirmOkBtn');
+  const unsavedConfirmView = document.getElementById('unsavedConfirmView');
+  const unsavedConfirmCancelBtn = document.getElementById('unsavedConfirmCancelBtn');
+  const unsavedConfirmOkBtn = document.getElementById('unsavedConfirmOkBtn');
+  const clearConfigConfirmView = document.getElementById('clearConfigConfirmView');
+  const clearConfigConfirmCancelBtn = document.getElementById('clearConfigConfirmCancelBtn');
+  const clearConfigConfirmOkBtn = document.getElementById('clearConfigConfirmOkBtn');
 
   const updateBanner = document.getElementById('updateBanner');
   const updateBannerTitle = document.getElementById('updateBannerTitle');
   const updateBannerSub = document.getElementById('updateBannerSub');
   const updateBannerBtn = document.getElementById('updateBannerBtn');
 
-  function openUpdateLogWindow(updateInfo) {
+  function showSettingsMessage(message, type = 'error') {
+    if (!settingsError) return;
+    settingsError.textContent = message;
+    settingsError.style.color = type === 'error' ? '#dc2626' : '#355f8a';
+    settingsError.classList.remove('view-hidden');
+  }
+
+  function clearSettingsMessage() {
+    if (!settingsError) return;
+    settingsError.style.color = '#dc2626';
+    settingsError.classList.add('view-hidden');
+  }
+
+  function collectDraftConfig() {
+    return {
+      studentId: studentIdInput.value.trim(),
+      password: passwordInput.value,
+      operator: operatorSelect.value,
+      portalAddress: portalAddressInput ? portalAddressInput.value.trim() : '',
+      autoLogin: autoLoginCheck.checked,
+      checkInterval: parseInt(checkIntervalInput.value, 10) || 15,
+      autoCheck: autoCheckInput ? autoCheckInput.checked : true
+    };
+  }
+
+  function getDefaultConfig() {
+    return {
+      studentId: '',
+      password: '',
+      operator: 'cmcc',
+      portalAddress: '',
+      autoLogin: false,
+      checkInterval: 15,
+      autoCheck: true
+    };
+  }
+
+  async function refreshConfigFromBackend({ applyToForm = false } = {}) {
+    try {
+      const latestConfig = await invoke('get_config');
+      config = normalizeConfig(latestConfig);
+      if (applyToForm) {
+        applyConfigToForm(config);
+      }
+      return config;
+    } catch (error) {
+      console.error('Failed to load config', error);
+      throw error;
+    }
+  }
+
+  function applyConfigToForm(configValue) {
+    if (!configValue) return;
+
+    studentIdInput.value = configValue.studentId || '';
+    passwordInput.value = configValue.password || '';
+    operatorSelect.value = configValue.operator || 'cmcc';
+    if (portalAddressInput) portalAddressInput.value = configValue.portalAddress || '';
+    autoLoginCheck.checked = !!configValue.autoLogin;
+    if (autoCheckInput) autoCheckInput.checked = configValue.autoCheck !== false;
+    if (checkIntervalInput) checkIntervalInput.value = configValue.checkInterval || 15;
+    if (checkIntervalWrapper) {
+      if (configValue.autoCheck === false) checkIntervalWrapper.classList.add('collapsed');
+      else checkIntervalWrapper.classList.remove('collapsed');
+    }
+  }
+
+  function normalizeConfig(configValue) {
+    return {
+      studentId: (configValue?.studentId || '').trim(),
+      password: configValue?.password || '',
+      operator: configValue?.operator || 'cmcc',
+      portalAddress: (configValue?.portalAddress || '').trim(),
+      autoLogin: !!configValue?.autoLogin,
+      checkInterval: parseInt(configValue?.checkInterval, 10) || 15,
+      autoCheck: configValue?.autoCheck !== false
+    };
+  }
+
+  async function persistConfig(configValue) {
+    const normalizedConfig = normalizeConfig(configValue);
+    await invoke('save_config', { configValue: normalizedConfig });
+    config = normalizedConfig;
+    applyConfigToForm(config);
+    return config;
+  }
+
+  function hasUnsavedSettings() {
+    return JSON.stringify(normalizeConfig(collectDraftConfig())) !== JSON.stringify(normalizeConfig(config));
+  }
+
+  function parseVersion(version) {
+    const sanitized = String(version || '').trim().replace(/^v/i, '').split('+')[0];
+    const [corePart, preReleasePart = ''] = sanitized.split('-', 2);
+
+    return {
+      core: corePart.split('.').map(part => Number.parseInt(part, 10) || 0),
+      preRelease: preReleasePart
+        ? preReleasePart.split('.').map(part => (/^\d+$/.test(part) ? Number.parseInt(part, 10) : part.toLowerCase()))
+        : []
+    };
+  }
+
+  function compareIdentifiers(left, right) {
+    if (typeof left === 'number' && typeof right === 'number') {
+      return left === right ? 0 : (left > right ? 1 : -1);
+    }
+
+    if (typeof left === 'number') return -1;
+    if (typeof right === 'number') return 1;
+    if (left === right) return 0;
+    return left > right ? 1 : -1;
+  }
+
+  function compareVersions(leftVersion, rightVersion) {
+    const left = parseVersion(leftVersion);
+    const right = parseVersion(rightVersion);
+    const coreLength = Math.max(left.core.length, right.core.length);
+
+    for (let index = 0; index < coreLength; index += 1) {
+      const diff = compareIdentifiers(left.core[index] ?? 0, right.core[index] ?? 0);
+      if (diff !== 0) return diff;
+    }
+
+    if (left.preRelease.length === 0 && right.preRelease.length === 0) return 0;
+    if (left.preRelease.length === 0) return 1;
+    if (right.preRelease.length === 0) return -1;
+
+    const preReleaseLength = Math.max(left.preRelease.length, right.preRelease.length);
+    for (let index = 0; index < preReleaseLength; index += 1) {
+      const leftPart = left.preRelease[index];
+      const rightPart = right.preRelease[index];
+
+      if (leftPart === undefined) return -1;
+      if (rightPart === undefined) return 1;
+
+      const diff = compareIdentifiers(leftPart, rightPart);
+      if (diff !== 0) return diff;
+    }
+
+    return 0;
+  }
+
+  async function getCurrentVersion() {
+    if (!app || typeof app.getVersion !== 'function') return '';
+
+    try {
+      return await app.getVersion();
+    } catch (error) {
+      console.warn('Failed to read app version:', error);
+      return '';
+    }
+  }
+
+  function getPreferredUpdateChannel() {
+    return isBetaBuild ? 'beta' : 'stable';
+  }
+
+  function openUpdateLogWindow(updateInfo, channel = 'stable') {
     if (!updateInfo || !WebviewWindow) return;
 
     const cacheKey = `update-log:${Date.now()}:${Math.random().toString(16).slice(2)}`;
     localStorage.setItem(cacheKey, JSON.stringify({
+      channel,
       version: updateInfo.version || '',
       available: !!updateInfo.available,
       notes: updateInfo.notes || '',
@@ -129,7 +301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (updateBannerBtn) {
     updateBannerBtn.addEventListener('click', () => {
-      if (lastUpdateInfo) openUpdateLogWindow(lastUpdateInfo);
+      if (lastUpdateInfo) openUpdateLogWindow(lastUpdateInfo, getPreferredUpdateChannel());
       if (updateBanner) updateBanner.classList.add('view-hidden');
       if (settingsView) settingsView.classList.remove('view-hidden');
     });
@@ -148,7 +320,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (confirmOkBtn) {
     confirmOkBtn.addEventListener('click', async () => {
       if (!pendingLoginConfig) return;
-      const config = pendingLoginConfig;
+      const loginConfig = pendingLoginConfig;
       pendingLoginConfig = null;
       if (confirmView) confirmView.classList.add('view-hidden');
 
@@ -156,8 +328,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       loginBtn.textContent = '正在连接...';
       setStatus('正在顶替登录...', 'normal');
       try {
-        const result = await invoke('do_login', { configValue: config, force: true });
-        setStatus(result.message, result.success ? 'success' : 'error');
+        const result = await invoke('do_login', { configValue: loginConfig, force: true });
+        let statusType = result.success ? 'success' : 'error';
+        let statusMessageText = result.message;
+
+        if (result.success) {
+          try {
+            await persistConfig(loginConfig);
+          } catch (error) {
+            console.error('Failed to persist config after force login:', error);
+            statusType = 'error';
+            statusMessageText = `${result.message}，但保存本地配置失败：${String(error)}`;
+          }
+        }
+
+        setStatus(statusMessageText, statusType);
         if (result.success) {
           overrideSuccessView = false;
           showSuccessView();
@@ -201,17 +386,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         ? betaInstallResult.version
         : '未知版本';
 
-      if (settingsError) {
-        settingsError.textContent = `测试版 v${betaVersion} 安装程序已启动，请按安装向导完成更新`;
-        settingsError.style.color = '#355f8a';
-        settingsError.classList.remove('view-hidden');
-      }
+      showSettingsMessage(`测试版 v${betaVersion} 安装程序已启动，请按安装向导完成更新`, 'info');
     } catch (error) {
-      if (settingsError) {
-        settingsError.textContent = '安装测试版失败: ' + error;
-        settingsError.style.color = '#dc2626';
-        settingsError.classList.remove('view-hidden');
-      }
+      showSettingsMessage('安装测试版失败: ' + error, 'error');
       console.error('Install beta update failed:', error);
     }
 
@@ -229,12 +406,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  if (openSettingsBtn) {
-    openSettingsBtn.addEventListener('click', () => {
+  if (unsavedConfirmCancelBtn) {
+    unsavedConfirmCancelBtn.addEventListener('click', () => {
+      if (unsavedConfirmView) unsavedConfirmView.classList.add('view-hidden');
       if (settingsView) settingsView.classList.remove('view-hidden');
-      if (settingsError) {
-        settingsError.style.color = '#dc2626';
-        settingsError.classList.add('view-hidden');
+    });
+  }
+
+  if (unsavedConfirmOkBtn) {
+    unsavedConfirmOkBtn.addEventListener('click', () => {
+      applyConfigToForm(config);
+      if (unsavedConfirmView) unsavedConfirmView.classList.add('view-hidden');
+      if (settingsView) settingsView.classList.add('view-hidden');
+      clearSettingsMessage();
+      showLoginView();
+    });
+  }
+
+  if (clearConfigConfirmCancelBtn) {
+    clearConfigConfirmCancelBtn.addEventListener('click', () => {
+      if (clearConfigConfirmView) clearConfigConfirmView.classList.add('view-hidden');
+      if (settingsView) settingsView.classList.remove('view-hidden');
+    });
+  }
+
+  if (clearConfigConfirmOkBtn) {
+    clearConfigConfirmOkBtn.addEventListener('click', () => {
+      if (clearConfigConfirmView) clearConfigConfirmView.classList.add('view-hidden');
+      performClearConfig();
+    });
+  }
+
+  if (openSettingsBtn) {
+    openSettingsBtn.addEventListener('click', async () => {
+      openSettingsBtn.disabled = true;
+      clearSettingsMessage();
+
+      try {
+        await refreshConfigFromBackend({ applyToForm: true });
+        if (settingsView) settingsView.classList.remove('view-hidden');
+      } catch (error) {
+        setStatus(`读取设置失败：${String(error)}`, 'error');
+      } finally {
+        openSettingsBtn.disabled = false;
       }
     });
   }
@@ -245,13 +459,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  if (settingsBackBtn) {
+    settingsBackBtn.addEventListener('click', () => {
+      if (hasUnsavedSettings()) {
+        if (unsavedConfirmView) unsavedConfirmView.classList.remove('view-hidden');
+        return;
+      }
+      if (settingsView) settingsView.classList.add('view-hidden');
+      clearSettingsMessage();
+      showLoginView();
+    });
+  }
+
   if (closeSettingsBtn) {
     closeSettingsBtn.addEventListener('click', () => {
+      handleSaveSettings().catch(error => {
+        console.error('Failed to save settings:', error);
+        showSettingsMessage(String(error), 'error');
+        closeSettingsBtn.disabled = false;
+        if (checkUpdateBtn) checkUpdateBtn.disabled = false;
+      });
+    });
+  }
+
+  if (clearConfigBtn) {
+    clearConfigBtn.addEventListener('click', () => {
+      handleClearConfig();
+    });
+  }
+
+  async function handleSaveSettings() {
       const isAutoCheck = autoCheckInput ? autoCheckInput.checked : true;
       const intervalVal = parseInt(checkIntervalInput.value, 10);
       
       if (isAutoCheck && (isNaN(intervalVal) || intervalVal < 5)) {
-        if (settingsError) settingsError.classList.remove('view-hidden');
+        showSettingsMessage('⚠ 频率不得低于 5 秒', 'error');
         if (checkIntervalInput) {
           checkIntervalInput.classList.add('shake');
           setTimeout(() => checkIntervalInput.classList.remove('shake'), 400);
@@ -259,11 +501,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         return; // Early return to prevent saving & closing
       }
 
-      if (settingsError) {
-        settingsError.style.color = '#dc2626';
-        settingsError.classList.add('view-hidden');
-      }
-      if (settingsView) settingsView.classList.add('view-hidden');
+      clearSettingsMessage();
+      closeSettingsBtn.disabled = true;
+      if (clearConfigBtn) clearConfigBtn.disabled = true;
+      if (checkUpdateBtn) checkUpdateBtn.disabled = true;
       
       const newConfig = {
         studentId: studentIdInput.value.trim(),
@@ -274,33 +515,68 @@ document.addEventListener('DOMContentLoaded', async () => {
         checkInterval: intervalVal,
         autoCheck: isAutoCheck
       };
+      const nextConfig = normalizeConfig(newConfig);
       
-      if (typeof startHeartbeat === 'function') startHeartbeat(newConfig.checkInterval, newConfig.autoCheck);
-      invoke('save_config', { configValue: newConfig }).catch(console.error);
-    });
+      try {
+        await persistConfig(newConfig);
+        if (typeof startHeartbeat === 'function') startHeartbeat(nextConfig.checkInterval, nextConfig.autoCheck);
+        if (settingsView) settingsView.classList.add('view-hidden');
+        showLoginView();
+
+        const syncResult = await invoke('sync_auto_login_settings', { configValue: nextConfig });
+        setStatus(syncResult?.message || '设置已保存', syncResult?.relaunched ? 'normal' : 'success');
+      } catch (error) {
+        showSettingsMessage(String(error), 'error');
+      } finally {
+        closeSettingsBtn.disabled = false;
+        if (clearConfigBtn) clearConfigBtn.disabled = false;
+        if (checkUpdateBtn) checkUpdateBtn.disabled = false;
+      }
+  }
+
+  function handleClearConfig() {
+      clearSettingsMessage();
+      if (clearConfigConfirmView) clearConfigConfirmView.classList.remove('view-hidden');
+  }
+
+  async function performClearConfig() {
+      clearSettingsMessage();
+      if (clearConfigBtn) clearConfigBtn.disabled = true;
+      closeSettingsBtn.disabled = true;
+      if (checkUpdateBtn) checkUpdateBtn.disabled = true;
+
+      try {
+        const result = await invoke('clear_config');
+        config = getDefaultConfig();
+        applyConfigToForm(config);
+        if (typeof startHeartbeat === 'function') startHeartbeat(config.checkInterval, config.autoCheck);
+        overrideSuccessView = true;
+        showLoginView();
+        if (settingsView) settingsView.classList.add('view-hidden');
+        setStatus(result?.message || '已清空本地保存的账号配置，当前网络连接状态不受影响。', 'normal');
+      } catch (error) {
+        showSettingsMessage(String(error), 'error');
+      } finally {
+        if (clearConfigBtn) clearConfigBtn.disabled = false;
+        closeSettingsBtn.disabled = false;
+        if (checkUpdateBtn) checkUpdateBtn.disabled = false;
+      }
   }
 
   // Check Updates Logic
   if (checkUpdateBtn) {
     checkUpdateBtn.addEventListener('click', async () => {
       checkUpdateBtn.disabled = true;
-      if (settingsError) {
-        settingsError.style.color = '#dc2626';
-        settingsError.classList.add('view-hidden');
-      }
+      clearSettingsMessage();
 
       try {
         const updateInfo = await invoke('check_for_updates');
         if (updateInfo) {
             lastUpdateInfo = updateInfo;
-            openUpdateLogWindow(updateInfo);
+            openUpdateLogWindow(updateInfo, getPreferredUpdateChannel());
         }
       } catch (e) {
-        if (settingsError) {
-            settingsError.style.color = '#dc2626';
-            settingsError.textContent = '网络不通，或你尚未为此版本生成安全签名。\n底层截获: ' + e;
-            settingsError.classList.remove('view-hidden');
-        }
+        showSettingsMessage('网络不通，或你尚未为此版本生成安全签名。\n底层截获: ' + e, 'error');
         console.error(e);
       } finally {
         checkUpdateBtn.disabled = false;
@@ -309,22 +585,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Load Config
-  let config = { studentId: '', password: '', operator: 'cmcc', portalAddress: '', autoLogin: false, checkInterval: 15, autoCheck: true };
+  let config = getDefaultConfig();
   try {
-    config = await invoke('get_config');
-    studentIdInput.value = config.studentId || '';
-    passwordInput.value = config.password || '';
-    operatorSelect.value = config.operator || 'cmcc';
-    if (portalAddressInput) portalAddressInput.value = config.portalAddress || '';
-    autoLoginCheck.checked = config.autoLogin || false;
-    if (autoCheckInput) autoCheckInput.checked = config.autoCheck !== false;
-    if (checkIntervalInput) checkIntervalInput.value = config.checkInterval || 15;
-    if (checkIntervalWrapper) {
-        if (config.autoCheck === false) checkIntervalWrapper.classList.add('collapsed');
-        else checkIntervalWrapper.classList.remove('collapsed');
-    }
-  } catch (e) {
-    console.error('Failed to load config', e);
+    await refreshConfigFromBackend({ applyToForm: true });
+  } catch (error) {
+    config = getDefaultConfig();
   }
 
   // Auto check connection
@@ -374,10 +639,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Dynamic Version Injection
   const appVersionDisplay = document.getElementById('appVersionDisplay');
-  if (appVersionDisplay && window.__TAURI__ && window.__TAURI__.app) {
-      window.__TAURI__.app.getVersion().then(v => {
-          appVersionDisplay.textContent = `版本 v${v} | 中国矿业大学`;
-      }).catch(console.error);
+  if (appVersionDisplay && startupVersion) {
+      appVersionDisplay.textContent = `版本 v${startupVersion} | 中国矿业大学`;
   }
 
   // Check Status Click
@@ -475,7 +738,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (confirmOnlineUser) confirmOnlineUser.textContent = result.onlineUser || '未知账号';
             if (confirmView) confirmView.classList.remove('view-hidden');
         } else {
-            setStatus(result.message, result.success ? 'success' : 'error');
+            let statusType = result.success ? 'success' : 'error';
+            let statusMessageText = result.message;
+
+            if (result.success) {
+                try {
+                    await persistConfig(newConfig);
+                } catch (error) {
+                    console.error('Failed to persist config after login:', error);
+                    statusType = 'error';
+                    statusMessageText = `${result.message}，但保存本地配置失败：${String(error)}`;
+                }
+            }
+
+            setStatus(statusMessageText, statusType);
             if (result.success) {
                 overrideSuccessView = false;
                 showSuccessView();

@@ -1,5 +1,6 @@
 use crate::models::{
-    BetaInstallResult, BetaInstallerInfo, Config, LoginResult, StatusResult, UpdateInfo,
+    AutoLoginSyncResult, BetaInstallResult, BetaInstallerInfo, ClearConfigResult, Config,
+    LoginResult, StatusResult, UpdateInfo,
 };
 use crate::services::{config, portal, system};
 
@@ -9,8 +10,57 @@ pub fn get_config() -> Config {
 }
 
 #[tauri::command]
-pub fn save_config(config_value: Config, _app_handle: tauri::AppHandle) {
-    config::save_config(&config_value);
+pub async fn save_config(
+    config_value: Config,
+    _app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || config::save_config_with_result(&config_value))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn clear_config() -> Result<ClearConfigResult, String> {
+    tauri::async_runtime::spawn_blocking(config::clear_config_with_result)
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn sync_auto_login_settings(
+    config_value: Config,
+    app_handle: tauri::AppHandle,
+) -> Result<AutoLoginSyncResult, String> {
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        config::sync_auto_login_settings(&config_value)
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+
+    if result.relaunched {
+        let handle = app_handle.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(250));
+            handle.exit(0);
+        });
+    }
+
+    Ok(result)
+}
+
+#[tauri::command]
+pub fn relaunch_as_admin(app_handle: tauri::AppHandle) -> Result<bool, String> {
+    let relaunched = config::relaunch_as_admin()?;
+
+    if relaunched {
+        let handle = app_handle.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(250));
+            handle.exit(0);
+        });
+    }
+
+    Ok(relaunched)
 }
 
 #[tauri::command]
@@ -63,8 +113,18 @@ pub async fn get_beta_installer_info() -> Result<BetaInstallerInfo, String> {
 }
 
 #[tauri::command]
+pub async fn get_stable_installer_info() -> Result<BetaInstallerInfo, String> {
+    system::get_stable_installer_info().await
+}
+
+#[tauri::command]
 pub async fn install_beta_update() -> Result<BetaInstallResult, String> {
     system::install_beta_update().await
+}
+
+#[tauri::command]
+pub async fn install_stable_update() -> Result<BetaInstallResult, String> {
+    system::install_stable_update().await
 }
 
 #[tauri::command]

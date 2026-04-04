@@ -17,17 +17,21 @@
   padding: 0;
 }
 
-body, html {
+html,
+body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: transparent;
   width: 100vw;
   height: 100vh;
   margin: 0;
-  padding: 0;
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
   box-sizing: border-box;
+}
+
+body {
+  padding: 1px;
 }
 
 input, select {
@@ -41,6 +45,8 @@ input, select {
   height: 100%;
   border-radius: 20px;
   border: 1px solid var(--taupe-200);
+  overflow: hidden;
+  clip-path: inset(0 round 20px);
   padding: 45px 25px 20px;
   display: flex;
   flex-direction: column;
@@ -208,6 +214,17 @@ input:focus, select:focus {
   background: var(--taupe-100);
 }
 
+.danger-outline-btn {
+  color: #b45309;
+  border-color: #f1d6ae;
+  background: #fffaf2;
+}
+
+.danger-outline-btn:hover {
+  background: #fdf1de;
+  border-color: #e7c185;
+}
+
 .status-message {
   text-align: center;
   font-size: 13px;
@@ -323,6 +340,14 @@ input:focus, select:focus {
   animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+#unsavedConfirmView {
+  z-index: 120;
+}
+
+#clearConfigConfirmView {
+  z-index: 125;
+}
+
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(15px); }
   to { opacity: 1; transform: translateY(0); }
@@ -333,6 +358,42 @@ input:focus, select:focus {
   color: var(--taupe-800);
   margin: 0 0 24px 0;
   font-weight: 600;
+}
+
+.settings-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: -8px;
+}
+
+.settings-header-row h2 {
+  margin-bottom: 22px;
+}
+
+.settings-back-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--taupe-200);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--taupe-700);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 22px;
+  flex-shrink: 0;
+}
+
+.settings-back-btn:hover {
+  background: var(--taupe-100);
+  color: var(--taupe-800);
+}
+
+#settingsView .settings-content {
+  padding-top: 4px;
 }
 
 .settings-content {

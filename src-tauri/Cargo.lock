@@ -765,7 +765,7 @@ dependencies = [
 
 [[package]]
 name = "cumt_login"
-version = "1.20.4"
+version = "1.20.5"
 dependencies = [
  "directories",
  "fastrand 2.3.0",
@@ -775,7 +775,9 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-single-instance",
+ "tokio",
  "urlencoding",
+ "windows-sys 0.59.0",
  "winreg 0.52.0",
 ]
 

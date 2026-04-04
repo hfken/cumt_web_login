@@ -3,16 +3,83 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use reqwest::Client;
 use serde_json::Value;
 use tauri::AppHandle;
+use tokio::time::sleep;
 
 use crate::models::{Config, LoginResult, StatusResult};
 use crate::services::{config, system};
 
 const DEFAULT_CAMPUS_HOST: &str = "10.2.5.251";
 const DEFAULT_PORTAL_ORIGIN: &str = "http://10.2.5.251:801";
+const STARTUP_AUTO_LOGIN_ATTEMPTS: usize = 10;
+const STARTUP_AUTO_LOGIN_RETRY_DELAY: Duration = Duration::from_secs(5);
+const STARTUP_AUTO_LOGIN_TITLE: &str = "校园网自动登录";
+const DIRECT_CONNECT_FAILED_MESSAGE: &str =
+    "无法直连校园网服务器；如果开启了 Clash 等代理软件的 TUN 模式，请先关闭后重试";
 
 struct PortalEndpoints {
     status_origin: String,
     portal_origin: String,
+}
+
+pub async fn run_startup_auto_login(config: Config, app_handle: AppHandle) {
+    if !config.auto_login || config.student_id.trim().is_empty() || config.password.is_empty() {
+        return;
+    }
+
+    for attempt in 0..STARTUP_AUTO_LOGIN_ATTEMPTS {
+        let result = login(config.clone(), app_handle.clone(), false).await;
+
+        if result.success {
+            return;
+        }
+
+        if result.needs_confirm {
+            let online_user = if result.online_user.trim().is_empty() {
+                "其他账号".into()
+            } else {
+                result.online_user.clone()
+            };
+
+            system::show_notification(
+                &app_handle,
+                STARTUP_AUTO_LOGIN_TITLE,
+                &format!(
+                    "检测到 {} 已在线，已跳过本次开机自动登录，避免自动顶号。",
+                    online_user
+                ),
+            );
+            return;
+        }
+
+        if is_invalid_credentials_message(&result.message) {
+            system::show_notification(
+                &app_handle,
+                STARTUP_AUTO_LOGIN_TITLE,
+                "保存的学号或密码无效，已停止本次开机自动登录，请打开主窗口检查。",
+            );
+            return;
+        }
+
+        if !is_retryable_startup_failure(&result) {
+            system::show_notification(
+                &app_handle,
+                STARTUP_AUTO_LOGIN_TITLE,
+                &format!("开机自动登录失败：{}", result.message),
+            );
+            return;
+        }
+
+        if attempt + 1 == STARTUP_AUTO_LOGIN_ATTEMPTS {
+            system::show_notification(
+                &app_handle,
+                STARTUP_AUTO_LOGIN_TITLE,
+                "开机后网络暂未就绪，自动登录已停止重试。请稍后打开主窗口手动重试。",
+            );
+            return;
+        }
+
+        sleep(STARTUP_AUTO_LOGIN_RETRY_DELAY).await;
+    }
 }
 
 pub async fn check_connection() -> StatusResult {
@@ -61,9 +128,9 @@ pub async fn login(config: Config, app_handle: AppHandle, force: bool) -> LoginR
         }
     }
 
-    let client = match build_client(5) {
+    let client = match build_direct_client(5) {
         Ok(client) => client,
-        Err(_) => return request_failed(),
+        Err(_) => return direct_request_failed(),
     };
 
     let timestamp = now_millis();
@@ -101,7 +168,7 @@ pub async fn login(config: Config, app_handle: AppHandle, force: bool) -> LoginR
         }
     }
 
-    request_failed()
+    direct_request_failed()
 }
 
 pub async fn logout() -> LoginResult {
@@ -110,9 +177,9 @@ pub async fn logout() -> LoginResult {
 }
 
 async fn check_connection_with_config(config: &Config) -> StatusResult {
-    let client = match build_client(3) {
+    let client = match build_direct_client(3) {
         Ok(client) => client,
-        Err(_) => return offline_status("无法连接校园网服务器"),
+        Err(_) => return offline_status(DIRECT_CONNECT_FAILED_MESSAGE),
     };
     let endpoints = resolve_endpoints(config);
 
@@ -153,7 +220,7 @@ async fn check_connection_with_config(config: &Config) -> StatusResult {
         }
     }
 
-    offline_status("无法连接校园网服务器")
+    offline_status(DIRECT_CONNECT_FAILED_MESSAGE)
 }
 
 async fn logout_with_config(config: &Config) -> LoginResult {
@@ -168,9 +235,9 @@ async fn logout_with_config(config: &Config) -> LoginResult {
         };
     }
 
-    let client = match build_client(5) {
+    let client = match build_direct_client(5) {
         Ok(client) => client,
-        Err(_) => return request_failed(),
+        Err(_) => return direct_request_failed(),
     };
 
     let timestamp = now_millis();
@@ -193,12 +260,13 @@ async fn logout_with_config(config: &Config) -> LoginResult {
         }
     }
 
-    request_failed()
+    direct_request_failed()
 }
 
-fn build_client(timeout_secs: u64) -> Result<Client, reqwest::Error> {
+fn build_direct_client(timeout_secs: u64) -> Result<Client, reqwest::Error> {
     Client::builder()
         .timeout(Duration::from_secs(timeout_secs))
+        .no_proxy()
         .build()
 }
 
@@ -241,10 +309,10 @@ fn offline_status(message: &str) -> StatusResult {
     }
 }
 
-fn request_failed() -> LoginResult {
+fn direct_request_failed() -> LoginResult {
     LoginResult {
         success: false,
-        message: "网络请求失败".into(),
+        message: DIRECT_CONNECT_FAILED_MESSAGE.into(),
         ..Default::default()
     }
 }
@@ -289,4 +357,17 @@ fn resolve_endpoints(config: &Config) -> PortalEndpoints {
         status_origin: format!("http://{}", DEFAULT_CAMPUS_HOST),
         portal_origin: DEFAULT_PORTAL_ORIGIN.into(),
     }
+}
+
+fn is_invalid_credentials_message(message: &str) -> bool {
+    message.contains("账号密码错误")
+}
+
+fn is_retryable_startup_failure(result: &LoginResult) -> bool {
+    !result.success
+        && !result.needs_confirm
+        && (result.message.contains("网络请求失败")
+            || result.message.contains("无法连接校园网服务器")
+            || result.message.contains("无法直连校园网服务器")
+            || result.message.contains("未登录"))
 }
