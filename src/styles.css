@@ -340,6 +340,10 @@ input:focus, select:focus {
   animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+#settingsView {
+  padding: 22px 0 0;
+}
+
 #unsavedConfirmView {
   z-index: 120;
 }
@@ -369,6 +373,7 @@ input:focus, select:focus {
   align-items: center;
   gap: 10px;
   margin-top: -8px;
+  padding: 0 25px;
 }
 
 .settings-header-row h2 {
@@ -402,6 +407,193 @@ input:focus, select:focus {
 
 .settings-content {
   flex: 1;
+}
+
+.settings-scroll-shell {
+  position: relative;
+  min-height: 0;
+}
+
+.settings-scroll-area {
+  overflow-y: auto;
+  height: 100%;
+  margin-bottom: 0;
+  padding: 4px 34px 126px 25px;
+  position: relative;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.settings-scroll-area::after {
+  content: "";
+  display: block;
+  height: 88px;
+}
+
+.settings-scroll-area::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.settings-custom-scrollbar {
+  position: absolute;
+  top: 8px;
+  right: 14px;
+  bottom: 132px;
+  width: 8px;
+  border-radius: 999px;
+  background: rgba(216, 210, 204, 0.14);
+  pointer-events: auto;
+  transition: background 0.18s ease, opacity 0.18s ease;
+}
+
+.settings-custom-scrollbar-thumb {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 0;
+  height: 48px;
+  min-height: 30px;
+  border-radius: 999px;
+  background: rgba(149, 132, 111, 0.42);
+  box-shadow: 0 1px 4px rgba(111, 95, 81, 0.08);
+  cursor: pointer;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.settings-scroll-shell:hover .settings-custom-scrollbar {
+  background: rgba(216, 210, 204, 0.22);
+}
+
+.settings-scroll-shell:hover .settings-custom-scrollbar-thumb,
+.settings-custom-scrollbar-thumb.is-active {
+  background: rgba(149, 132, 111, 0.72);
+  box-shadow: 0 2px 6px rgba(111, 95, 81, 0.14);
+}
+
+.settings-custom-scrollbar.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settings-actions-glass {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 18px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  z-index: 6;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(247, 244, 240, 0.3) 42%, rgba(238, 233, 227, 0.42) 100%);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  box-shadow:
+    0 18px 36px rgba(111, 95, 81, 0.16),
+    0 6px 14px rgba(111, 95, 81, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.settings-actions-glass::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+  pointer-events: none;
+}
+
+.settings-actions-glass::after {
+  content: none;
+}
+
+.settings-actions-glass > button {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  padding: 9px 8px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: normal;
+  transition: all 0.22s ease;
+}
+
+.settings-actions-glass > .secondary-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(191, 181, 171, 0.18);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.settings-actions-glass > .secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.34);
+  border-color: rgba(166, 150, 136, 0.28);
+  transform: translateY(-1px);
+}
+
+.settings-actions-glass > .primary-btn {
+  background: var(--taupe-700);
+  border: 1px solid rgba(111, 95, 81, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 10px 22px rgba(111, 95, 81, 0.2),
+    0 2px 4px rgba(111, 95, 81, 0.12);
+}
+
+.settings-actions-glass > .primary-btn::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  border: 1px solid rgba(117, 100, 83, 0.14);
+  background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.14), transparent 70%);
+  pointer-events: none;
+}
+
+.tab-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 58px;
+  text-align: center;
+}
+
+.tab-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.tab-action-icon svg {
+  display: block;
+}
+
+.tab-action-label {
+  display: block;
+  max-width: 100%;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+}
+
+.tab-action-btn-primary .tab-action-icon {
+  width: 21px;
+  height: 21px;
+}
+
+.tab-action-btn-primary .tab-action-label {
+  font-size: 10.5px;
 }
 
 .settings-section {

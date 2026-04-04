@@ -31,8 +31,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const checkIntervalWrapper = document.getElementById('checkIntervalWrapper');
   const autoCheckInput = document.getElementById('autoCheck');
   const portalAddressInput = document.getElementById('portalAddress');
+  const settingsScrollArea = document.getElementById('settingsScrollArea');
+  const settingsCustomScrollbar = document.getElementById('settingsCustomScrollbar');
+  const settingsCustomScrollbarThumb = document.getElementById('settingsCustomScrollbarThumb');
   const backToLoginBtn = document.getElementById('backToLoginBtn');
   const checkUpdateBtn = document.getElementById('checkUpdateBtn');
+  const installBetaBtn = document.getElementById('installBetaBtn');
   const settingsError = document.getElementById('settingsError');
 
   let overrideSuccessView = false;
@@ -67,6 +71,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const updateBannerSub = document.getElementById('updateBannerSub');
   const updateBannerBtn = document.getElementById('updateBannerBtn');
   let autoLoginRepairPromptDismissed = false;
+  let settingsScrollbarDragState = null;
 
   function showSettingsMessage(message, type = 'error') {
     if (!settingsError) return;
@@ -91,6 +96,61 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!autoLoginRepairError) return;
     autoLoginRepairError.textContent = '';
     autoLoginRepairError.classList.add('view-hidden');
+  }
+
+  function updateSettingsCustomScrollbar() {
+    if (!settingsScrollArea || !settingsCustomScrollbar || !settingsCustomScrollbarThumb) return;
+
+    const viewportHeight = settingsScrollArea.clientHeight;
+    const contentHeight = settingsScrollArea.scrollHeight;
+    const trackHeight = settingsCustomScrollbar.clientHeight;
+    const maxScrollTop = Math.max(0, contentHeight - viewportHeight);
+
+    if (maxScrollTop <= 0 || trackHeight <= 0) {
+      settingsCustomScrollbar.classList.add('is-hidden');
+      settingsCustomScrollbarThumb.style.height = '0px';
+      settingsCustomScrollbarThumb.style.transform = 'translateY(0)';
+      return;
+    }
+
+    settingsCustomScrollbar.classList.remove('is-hidden');
+
+    const thumbHeight = Math.max(30, Math.round((viewportHeight / contentHeight) * trackHeight));
+    const maxThumbTop = Math.max(0, trackHeight - thumbHeight);
+    const thumbTop = (settingsScrollArea.scrollTop / maxScrollTop) * maxThumbTop;
+
+    settingsCustomScrollbarThumb.style.height = `${thumbHeight}px`;
+    settingsCustomScrollbarThumb.style.transform = `translateY(${thumbTop}px)`;
+  }
+
+  function scheduleSettingsCustomScrollbarRefresh() {
+    if (!settingsView || settingsView.classList.contains('view-hidden')) return;
+
+    updateSettingsCustomScrollbar();
+    window.requestAnimationFrame(() => {
+      updateSettingsCustomScrollbar();
+      window.requestAnimationFrame(() => {
+        updateSettingsCustomScrollbar();
+      });
+    });
+    window.setTimeout(() => {
+      updateSettingsCustomScrollbar();
+    }, 80);
+  }
+
+  function scrollSettingsByTrackPosition(clientY) {
+    if (!settingsScrollArea || !settingsCustomScrollbar || !settingsCustomScrollbarThumb) return;
+
+    const trackRect = settingsCustomScrollbar.getBoundingClientRect();
+    const thumbHeight = settingsCustomScrollbarThumb.offsetHeight;
+    const maxThumbTop = Math.max(0, trackRect.height - thumbHeight);
+    const rawThumbTop = clientY - trackRect.top - thumbHeight / 2;
+    const thumbTop = Math.min(Math.max(0, rawThumbTop), maxThumbTop);
+    const maxScrollTop = Math.max(0, settingsScrollArea.scrollHeight - settingsScrollArea.clientHeight);
+
+    settingsScrollArea.scrollTop = maxThumbTop === 0
+      ? 0
+      : (thumbTop / maxThumbTop) * maxScrollTop;
   }
 
   function collectDraftConfig() {
@@ -407,6 +467,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (loginView) loginView.classList.remove('view-hidden');
   }
 
+  async function openBetaInstaller() {
+    if (!installBetaBtn) return;
+
+    if (isBetaBuild) {
+      showSettingsMessage('你已安装测试版客户端，无需重复安装。', 'info');
+      setStatus('当前已是测试版客户端', 'normal');
+      return;
+    }
+
+    const originalText = installBetaBtn.textContent;
+    installBetaBtn.disabled = true;
+    installBetaBtn.textContent = '正在下载...';
+
+    try {
+      const betaInstallResult = await invoke('install_beta_update');
+      const betaVersion = betaInstallResult && typeof betaInstallResult.version === 'string'
+        ? betaInstallResult.version
+        : '未知版本';
+
+      showSettingsMessage(`测试版 v${betaVersion} 安装程序已启动，请按安装向导完成更新`, 'info');
+    } catch (error) {
+      showSettingsMessage('安装测试版失败: ' + error, 'error');
+      console.error('Install beta update failed:', error);
+    }
+
+    installBetaBtn.textContent = originalText;
+    installBetaBtn.disabled = false;
+  }
+
   // Settings Overlay Logic
   if (autoCheckInput) {
     autoCheckInput.addEventListener('change', () => {
@@ -414,6 +503,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (autoCheckInput.checked) checkIntervalWrapper.classList.remove('collapsed');
         else checkIntervalWrapper.classList.add('collapsed');
       }
+      scheduleSettingsCustomScrollbarRefresh();
     });
   }
 
@@ -479,6 +569,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  if (settingsScrollArea) {
+    settingsScrollArea.addEventListener('scroll', updateSettingsCustomScrollbar);
+  }
+
+  if (settingsCustomScrollbar) {
+    settingsCustomScrollbar.addEventListener('mousedown', event => {
+      if (event.target === settingsCustomScrollbarThumb) return;
+      event.preventDefault();
+      scrollSettingsByTrackPosition(event.clientY);
+      updateSettingsCustomScrollbar();
+    });
+  }
+
+  if (settingsCustomScrollbarThumb) {
+    settingsCustomScrollbarThumb.addEventListener('mousedown', event => {
+      if (!settingsCustomScrollbar) return;
+      event.preventDefault();
+
+      const trackRect = settingsCustomScrollbar.getBoundingClientRect();
+      const thumbRect = settingsCustomScrollbarThumb.getBoundingClientRect();
+      settingsScrollbarDragState = {
+        pointerOffsetY: event.clientY - thumbRect.top,
+        trackTop: trackRect.top
+      };
+      settingsCustomScrollbarThumb.classList.add('is-active');
+      document.body.style.userSelect = 'none';
+    });
+  }
+
+  document.addEventListener('mousemove', event => {
+    if (!settingsScrollbarDragState || !settingsScrollArea || !settingsCustomScrollbar || !settingsCustomScrollbarThumb) {
+      return;
+    }
+
+    const trackHeight = settingsCustomScrollbar.clientHeight;
+    const thumbHeight = settingsCustomScrollbarThumb.offsetHeight;
+    const maxThumbTop = Math.max(0, trackHeight - thumbHeight);
+    const rawThumbTop = event.clientY - settingsScrollbarDragState.trackTop - settingsScrollbarDragState.pointerOffsetY;
+    const thumbTop = Math.min(Math.max(0, rawThumbTop), maxThumbTop);
+    const maxScrollTop = Math.max(0, settingsScrollArea.scrollHeight - settingsScrollArea.clientHeight);
+
+    settingsScrollArea.scrollTop = maxThumbTop === 0
+      ? 0
+      : (thumbTop / maxThumbTop) * maxScrollTop;
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!settingsScrollbarDragState) return;
+    settingsScrollbarDragState = null;
+    if (settingsCustomScrollbarThumb) {
+      settingsCustomScrollbarThumb.classList.remove('is-active');
+    }
+    document.body.style.userSelect = '';
+  });
+
+  window.addEventListener('resize', updateSettingsCustomScrollbar);
+
   if (openSettingsBtn) {
     openSettingsBtn.addEventListener('click', async () => {
       openSettingsBtn.disabled = true;
@@ -487,6 +634,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         await refreshConfigFromBackend({ applyToForm: true });
         if (settingsView) settingsView.classList.remove('view-hidden');
+        if (settingsScrollArea) settingsScrollArea.scrollTop = 0;
+        scheduleSettingsCustomScrollbarRefresh();
       } catch (error) {
         setStatus(`读取设置失败：${String(error)}`, 'error');
       } finally {
@@ -623,10 +772,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  if (installBetaBtn) {
+    installBetaBtn.addEventListener('click', () => {
+      openBetaInstaller();
+    });
+  }
+
   // Load Config
   let config = getDefaultConfig();
   try {
     await refreshConfigFromBackend({ applyToForm: true });
+    updateSettingsCustomScrollbar();
     await checkAutoLoginRepairPrompt();
   } catch (error) {
     config = getDefaultConfig();
