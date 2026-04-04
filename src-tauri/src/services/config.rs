@@ -29,6 +29,12 @@ enum AutoLoginTaskState {
     Mismatched,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AutoLoginApplyOutcome {
+    Applied,
+    PendingElevation,
+}
+
 #[cfg(target_os = "windows")]
 impl AutoLoginAction {
     fn as_arg(self) -> &'static str {
@@ -110,26 +116,27 @@ pub fn sync_auto_login_settings(config: &Config) -> Result<AutoLoginSyncResult, 
             });
         }
 
-        if is_process_elevated()? {
-            sync_auto_login(config, false)?;
-            let message = if config.auto_login {
-                "设置已保存，已更新开机自启动配置。"
-            } else {
-                "设置已保存，已关闭开机自启动。"
-            };
+        let sync_outcome = sync_auto_login(config, true)?;
 
-            return Ok(AutoLoginSyncResult {
-                synced: true,
-                relaunched: false,
-                message: message.into(),
-            });
-        }
+        let (synced, message) = match sync_outcome {
+            AutoLoginApplyOutcome::Applied => {
+                let message = if config.auto_login {
+                    "设置已保存，已更新开机自启动配置。"
+                } else {
+                    "设置已保存，已关闭开机自启动。"
+                };
+                (true, message.into())
+            }
+            AutoLoginApplyOutcome::PendingElevation => (
+                false,
+                "设置已保存，正在请求管理员权限以完成开机自启动计划任务配置...".into(),
+            ),
+        };
 
-        run_elevated_full_app()?;
         return Ok(AutoLoginSyncResult {
-            synced: false,
-            relaunched: true,
-            message: "设置已保存，正在请求管理员权限并重启程序以完成开机自启动配置...".into(),
+            synced,
+            relaunched: false,
+            message,
         });
     }
 
@@ -187,7 +194,7 @@ pub fn maybe_run_elevated_autostart_helper() -> Option<i32> {
     cleanup_legacy_auto_login_registry();
 
     match apply_auto_login_action(action, &target_exe, false) {
-        Ok(()) => Some(0),
+        Ok(_) => Some(0),
         Err(_) => Some(1),
     }
 }
@@ -246,7 +253,7 @@ pub fn relaunch_as_admin() -> Result<bool, String> {
 }
 
 #[cfg(target_os = "windows")]
-fn sync_auto_login(config: &Config, allow_elevation: bool) -> Result<(), String> {
+fn sync_auto_login(config: &Config, allow_elevation: bool) -> Result<AutoLoginApplyOutcome, String> {
     cleanup_legacy_auto_login_registry();
     let target_exe = std::env::current_exe().map_err(|error| error.to_string())?;
 
@@ -347,16 +354,17 @@ fn apply_auto_login_action(
     action: AutoLoginAction,
     target_exe: &Path,
     allow_elevation: bool,
-) -> Result<(), String> {
+) -> Result<AutoLoginApplyOutcome, String> {
     let result = match action {
         AutoLoginAction::Enable => create_auto_login_task(target_exe),
         AutoLoginAction::Disable => delete_auto_login_task(),
     };
 
     match result {
-        Ok(()) => Ok(()),
+        Ok(()) => Ok(AutoLoginApplyOutcome::Applied),
         Err(message) if allow_elevation && needs_elevation(&message) => {
-            run_elevated_autostart_helper(action, target_exe)
+            run_elevated_autostart_helper(action, target_exe)?;
+            Ok(AutoLoginApplyOutcome::PendingElevation)
         }
         Err(message) => Err(format_schtasks_error(&message)),
     }
@@ -564,6 +572,9 @@ fn cleanup_legacy_auto_login_registry() {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn sync_auto_login(_config: &Config, _allow_elevation: bool) -> Result<(), String> {
-    Ok(())
+fn sync_auto_login(
+    _config: &Config,
+    _allow_elevation: bool,
+) -> Result<AutoLoginApplyOutcome, String> {
+    Ok(AutoLoginApplyOutcome::Applied)
 }

@@ -494,7 +494,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         showLoginView();
 
         const syncResult = await invoke('sync_auto_login_settings', { configValue: nextConfig });
-        setStatus(syncResult?.message || '设置已保存', syncResult?.relaunched ? 'normal' : 'success');
+        const syncStatusType = syncResult?.synced === false ? 'normal' : 'success';
+        setStatus(syncResult?.message || '设置已保存', syncStatusType);
       } catch (error) {
         showSettingsMessage(String(error), 'error');
       } finally {
