@@ -1,6 +1,6 @@
 use crate::models::{
-    AutoLoginSyncResult, BetaInstallResult, BetaInstallerInfo, ClearConfigResult, Config,
-    LoginResult, StatusResult, UpdateInfo,
+    AutoLoginSyncResult, AutoLoginTaskCheckResult, BetaInstallResult, BetaInstallerInfo,
+    ClearConfigResult, Config, LoginResult, StatusResult, UpdateInfo,
 };
 use crate::services::{config, portal, system};
 
@@ -46,6 +46,17 @@ pub async fn sync_auto_login_settings(
     }
 
     Ok(result)
+}
+
+#[tauri::command]
+pub async fn check_auto_login_task_status(
+    config_value: Config,
+) -> Result<AutoLoginTaskCheckResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        config::check_auto_login_task_status(&config_value)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]

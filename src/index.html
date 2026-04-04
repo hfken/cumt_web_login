@@ -183,6 +183,33 @@
       </div>
     </div>
 
+    <div id="autoLoginRepairView" class="view-hidden overlay-view">
+      <div class="settings-header">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 9v4"></path>
+            <path d="M12 17h.01"></path>
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          </svg>
+          <h2 style="margin: 0;">修复开机自启</h2>
+        </div>
+      </div>
+      <div class="settings-content">
+        <p id="autoLoginRepairMessage" style="font-size: 13px; color: var(--taupe-700); line-height: 1.8;">
+          检测到当前系统里的开机自启动任务异常，开机后可能不会自动连接校园网。
+        </p>
+        <div id="autoLoginRepairError" class="view-hidden"
+          style="color: #dc2626; font-size: 12px; margin-top: 14px; text-align: center; font-weight: 500;">
+          修复失败
+        </div>
+      </div>
+      <div style="display: flex; gap: 12px; margin-top: auto; flex: none;">
+        <button id="autoLoginRepairLaterBtn" class="secondary-btn" style="flex: 1; padding: 12px 0;">稍后再说</button>
+        <button id="autoLoginRepairNowBtn" class="primary-btn" style="flex: 1.4; padding: 12px 0;">立即修复</button>
+      </div>
+    </div>
+
     <!-- Settings Overlay -->
     <div id="settingsView" class="view-hidden overlay-view">
       <div class="settings-header settings-header-row">

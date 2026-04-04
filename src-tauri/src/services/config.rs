@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use directories::ProjectDirs;
 
-use crate::models::{AutoLoginSyncResult, ClearConfigResult, Config};
+use crate::models::{AutoLoginSyncResult, AutoLoginTaskCheckResult, ClearConfigResult, Config};
 
 #[cfg(target_os = "windows")]
 const AUTO_LOGIN_TASK_NAME: &str = "CampusNetworkAutoLogin";
@@ -205,6 +205,64 @@ pub fn maybe_run_elevated_autostart_helper() -> Option<i32> {
     match apply_auto_login_action(action, &target_exe, false) {
         Ok(_) => Some(0),
         Err(_) => Some(1),
+    }
+}
+
+pub fn check_auto_login_task_status(config: &Config) -> Result<AutoLoginTaskCheckResult, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let target_exe = std::env::current_exe().map_err(|error| error.to_string())?;
+        let task_state = inspect_auto_login_task(&target_exe)?;
+
+        if !config.auto_login {
+            return Ok(AutoLoginTaskCheckResult {
+                enabled_in_config: false,
+                task_exists: task_state != AutoLoginTaskState::Missing,
+                task_matches_current_exe: task_state == AutoLoginTaskState::UpToDate,
+                needs_attention: false,
+                message: String::new(),
+            });
+        }
+
+        let (task_exists, task_matches_current_exe, needs_attention, message) = match task_state {
+            AutoLoginTaskState::UpToDate => (
+                true,
+                true,
+                false,
+                "系统已正确配置开机自启动计划任务。".to_string(),
+            ),
+            AutoLoginTaskState::Missing => (
+                false,
+                false,
+                true,
+                "检测到你之前已开启“开机后台自动登录”，但当前系统里没有对应的计划任务，开机后将不会自动连接校园网。".to_string(),
+            ),
+            AutoLoginTaskState::Mismatched => (
+                true,
+                false,
+                true,
+                "检测到现有开机自启动计划任务仍指向旧版本或旧路径，开机后可能无法正常自动连接校园网。".to_string(),
+            ),
+        };
+
+        return Ok(AutoLoginTaskCheckResult {
+            enabled_in_config: true,
+            task_exists,
+            task_matches_current_exe,
+            needs_attention,
+            message,
+        });
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(AutoLoginTaskCheckResult {
+            enabled_in_config: config.auto_login,
+            task_exists: false,
+            task_matches_current_exe: false,
+            needs_attention: false,
+            message: String::new(),
+        })
     }
 }
 
@@ -506,7 +564,10 @@ fn runas_launch_current_exe(parameters: &str) -> Result<(), String> {
             .unwrap_or_default();
         return Err(match error_code {
             1223 => "配置已保存，但你取消了管理员授权，未能完成开机自启动设置。".into(),
-            _ => "配置已保存，但拉起管理员授权失败，未能完成开机自启动设置。".into(),
+            _ => format!(
+                "配置已保存，但拉起管理员授权失败（错误码 {}），未能完成开机自启动设置。",
+                error_code
+            ),
         });
     }
 
