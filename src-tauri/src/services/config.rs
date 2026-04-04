@@ -352,8 +352,16 @@ fn inspect_auto_login_task(target_exe: &Path) -> Result<AutoLoginTaskState, Stri
 
     let command = extract_xml_tag(&xml, "Command").unwrap_or_default();
     let arguments = extract_xml_tag(&xml, "Arguments").unwrap_or_default();
+    let disallow_start_if_on_batteries = extract_xml_tag(&xml, "DisallowStartIfOnBatteries");
+    let stop_if_going_on_batteries = extract_xml_tag(&xml, "StopIfGoingOnBatteries");
 
-    if is_expected_auto_login_task(&command, &arguments, target_exe) {
+    if is_expected_auto_login_task(
+        &command,
+        &arguments,
+        disallow_start_if_on_batteries.as_deref(),
+        stop_if_going_on_batteries.as_deref(),
+        target_exe,
+    ) {
         Ok(AutoLoginTaskState::UpToDate)
     } else {
         Ok(AutoLoginTaskState::Mismatched)
@@ -378,9 +386,17 @@ fn is_missing_task_error(message: &str) -> bool {
 }
 
 #[cfg(target_os = "windows")]
-fn is_expected_auto_login_task(command: &str, arguments: &str, target_exe: &Path) -> bool {
+fn is_expected_auto_login_task(
+    command: &str,
+    arguments: &str,
+    disallow_start_if_on_batteries: Option<&str>,
+    stop_if_going_on_batteries: Option<&str>,
+    target_exe: &Path,
+) -> bool {
     normalize_windows_path(command) == normalize_windows_path(&target_exe.to_string_lossy())
         && normalize_task_arguments(arguments) == "--hidden"
+        && !xml_bool_is_true(disallow_start_if_on_batteries)
+        && !xml_bool_is_true(stop_if_going_on_batteries)
 }
 
 #[cfg(target_os = "windows")]
@@ -417,6 +433,13 @@ fn xml_unescape(value: &str) -> String {
 }
 
 #[cfg(target_os = "windows")]
+fn xml_bool_is_true(value: Option<&str>) -> bool {
+    value
+        .map(|text| text.trim().eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "windows")]
 fn apply_auto_login_action(
     action: AutoLoginAction,
     target_exe: &Path,
@@ -439,19 +462,20 @@ fn apply_auto_login_action(
 
 #[cfg(target_os = "windows")]
 fn create_auto_login_task(target_exe: &Path) -> Result<(), String> {
-    let task_run = format!("\"{}\" --hidden", target_exe.to_string_lossy());
+    let escaped_exe = escape_powershell_single_quoted_string(&target_exe.to_string_lossy());
+    let escaped_task_name = escape_powershell_single_quoted_string(AUTO_LOGIN_TASK_NAME);
+    let script = format!(
+        "$userId = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name; \
+         $action = New-ScheduledTaskAction -Execute '{exe}' -Argument '--hidden'; \
+         $trigger = New-ScheduledTaskTrigger -AtLogOn -User $userId; \
+         $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries; \
+         $principal = New-ScheduledTaskPrincipal -UserId $userId -LogonType Interactive -RunLevel Limited; \
+         Register-ScheduledTask -TaskName '{task_name}' -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null",
+        exe = escaped_exe,
+        task_name = escaped_task_name,
+    );
 
-    run_schtasks(&[
-        "/Create",
-        "/TN",
-        AUTO_LOGIN_TASK_NAME,
-        "/SC",
-        "ONLOGON",
-        "/TR",
-        &task_run,
-        "/IT",
-        "/F",
-    ])
+    run_powershell(&script)
 }
 
 #[cfg(target_os = "windows")]
@@ -467,6 +491,40 @@ fn delete_auto_login_task() -> Result<(), String> {
 #[cfg(target_os = "windows")]
 fn run_schtasks(args: &[&str]) -> Result<(), String> {
     run_schtasks_output(args).map(|_| ())
+}
+
+#[cfg(target_os = "windows")]
+fn run_powershell(script: &str) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    use std::process::Command;
+    use windows_sys::Win32::System::Threading::CREATE_NO_WINDOW;
+
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            script,
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = decode_windows_command_output(&output.stderr).trim().to_string();
+    let stdout = decode_windows_command_output(&output.stdout).trim().to_string();
+    let message = if !stderr.is_empty() { stderr } else { stdout };
+
+    if message.is_empty() {
+        Err("执行 PowerShell 计划任务配置失败。".into())
+    } else {
+        Err(message)
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -550,6 +608,11 @@ fn decode_windows_multibyte(bytes: &[u8], code_page: u32) -> Option<String> {
     }
 
     Some(String::from_utf16_lossy(&wide[..written as usize]))
+}
+
+#[cfg(target_os = "windows")]
+fn escape_powershell_single_quoted_string(value: &str) -> String {
+    value.replace('\'', "''")
 }
 
 #[cfg(target_os = "windows")]
