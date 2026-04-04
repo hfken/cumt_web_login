@@ -17,17 +17,21 @@
   padding: 0;
 }
 
-body, html {
+html,
+body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: transparent;
   width: 100vw;
   height: 100vh;
   margin: 0;
-  padding: 0;
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
   box-sizing: border-box;
+}
+
+body {
+  padding: 1px;
 }
 
 input, select {
@@ -41,6 +45,8 @@ input, select {
   height: 100%;
   border-radius: 20px;
   border: 1px solid var(--taupe-200);
+  overflow: hidden;
+  clip-path: inset(0 round 20px);
   padding: 45px 25px 20px;
   display: flex;
   flex-direction: column;

@@ -1,11 +1,11 @@
 {
-  "version": "1.20.5-beta.3",
-  "notes": "修复了开启系统代理下，校园网环境检测失败的问题",
-  "pub_date": "2026-04-04T04:49:34Z",
+  "version": "1.20.5-beta.3.1",
+  "notes": "修复了窗口边缘显示异常的问题",
+  "pub_date": "2026-04-04T05:07:31Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDF1cXgzYjB1NDlZRWt3U0U1MmJRNDE4aHBwWGc3OWpDL2U1NnJxSWNianpDYkxRLzJHbmdoblpnUXU3SkVjSEd0K01UK0t5VWgzZzRxbFgxdFpPRWdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc1Mjc4MTc0CWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuNS1iZXRhLjNfeDY0LXNldHVwLm5zaXMuemlwCktBWXdhcXJQN2lNVkZxYUxMS2RIY2NkTE85eDhkOXFvckRYWFJ6aEVFN00zbWVIU0xQNWpsUzFtWTJiRktaZU5zVS9Zdk0zaVh4MG9BRk41NFV4cEJ3PT0K",
-      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/raw/beta/beta-assets/CUMTLogin-beta-1.20.5-beta.3-x64-setup.nsis.zip"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDgzQ2krdmRranpRaVc1Y2owQ1dDZkMvYVE4VXVXNXJGNUVzODczNFlyNGNqcTVhSlFqa3d5UFp0ZVBUeEh2cWJycUVDa295RUJqdHI3dHJjZXhmakFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc1Mjc5MjUxCWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuNS1iZXRhLjMuMV94NjQtc2V0dXAubnNpcy56aXAKWjJJTHgyUk10YnRnQmdnWEFTNjJVdzdvNk15dTRhcjFaeis3UCtMc3Q4anBsMTRPWkNjRDJ6d1dRY1YvYU5WZUVuK3VBNzVrWitsU3RTSXVnMDVERGc9PQo=",
+      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/raw/beta/beta-assets/CUMTLogin-beta-1.20.5-beta.3.1-x64-setup.nsis.zip"
     }
   }
 }
