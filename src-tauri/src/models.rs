@@ -88,3 +88,13 @@ pub struct AutoLoginSyncResult {
     pub relaunched: bool,
     pub message: String,
 }
+
+#[derive(Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AutoLoginTaskCheckResult {
+    pub enabled_in_config: bool,
+    pub task_exists: bool,
+    pub task_matches_current_exe: bool,
+    pub needs_attention: bool,
+    pub message: String,
+}

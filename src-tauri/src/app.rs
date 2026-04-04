@@ -21,6 +21,7 @@ pub fn run() {
             crate::commands::save_config,
             crate::commands::clear_config,
             crate::commands::sync_auto_login_settings,
+            crate::commands::check_auto_login_task_status,
             crate::commands::relaunch_as_admin,
             crate::commands::check_connection,
             crate::commands::do_login,

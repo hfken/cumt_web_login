@@ -57,11 +57,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const clearConfigConfirmView = document.getElementById('clearConfigConfirmView');
   const clearConfigConfirmCancelBtn = document.getElementById('clearConfigConfirmCancelBtn');
   const clearConfigConfirmOkBtn = document.getElementById('clearConfigConfirmOkBtn');
+  const autoLoginRepairView = document.getElementById('autoLoginRepairView');
+  const autoLoginRepairMessage = document.getElementById('autoLoginRepairMessage');
+  const autoLoginRepairError = document.getElementById('autoLoginRepairError');
+  const autoLoginRepairLaterBtn = document.getElementById('autoLoginRepairLaterBtn');
+  const autoLoginRepairNowBtn = document.getElementById('autoLoginRepairNowBtn');
 
   const updateBanner = document.getElementById('updateBanner');
   const updateBannerTitle = document.getElementById('updateBannerTitle');
   const updateBannerSub = document.getElementById('updateBannerSub');
   const updateBannerBtn = document.getElementById('updateBannerBtn');
+  let autoLoginRepairPromptDismissed = false;
 
   function showSettingsMessage(message, type = 'error') {
     if (!settingsError) return;
@@ -74,6 +80,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!settingsError) return;
     settingsError.style.color = '#dc2626';
     settingsError.classList.add('view-hidden');
+  }
+
+  function showAutoLoginRepairError(message) {
+    if (!autoLoginRepairError) return;
+    autoLoginRepairError.textContent = message;
+    autoLoginRepairError.classList.remove('view-hidden');
+  }
+
+  function clearAutoLoginRepairError() {
+    if (!autoLoginRepairError) return;
+    autoLoginRepairError.textContent = '';
+    autoLoginRepairError.classList.add('view-hidden');
   }
 
   function collectDraftConfig() {
@@ -152,6 +170,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function hasUnsavedSettings() {
     return JSON.stringify(normalizeConfig(collectDraftConfig())) !== JSON.stringify(normalizeConfig(config));
+  }
+
+  async function checkAutoLoginRepairPrompt() {
+    if (autoLoginRepairPromptDismissed) return;
+    if (!config?.autoLogin) return;
+
+    try {
+      const taskStatus = await invoke('check_auto_login_task_status', { configValue: config });
+      if (!taskStatus?.needsAttention) return;
+      if (autoLoginRepairMessage) {
+        autoLoginRepairMessage.textContent = taskStatus.message || '检测到当前系统里的开机自启动任务异常，开机后可能不会自动连接校园网。';
+      }
+      clearAutoLoginRepairError();
+      if (autoLoginRepairView) autoLoginRepairView.classList.remove('view-hidden');
+    } catch (error) {
+      console.warn('Failed to inspect auto login task status:', error);
+    }
   }
 
   function parseVersion(version) {
@@ -437,6 +472,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  if (autoLoginRepairLaterBtn) {
+    autoLoginRepairLaterBtn.addEventListener('click', () => {
+      autoLoginRepairPromptDismissed = true;
+      clearAutoLoginRepairError();
+      if (autoLoginRepairView) autoLoginRepairView.classList.add('view-hidden');
+      setStatus('已暂时跳过开机自启动修复提醒，可稍后在设置页重新保存。', 'normal');
+    });
+  }
+
+  if (autoLoginRepairNowBtn) {
+    autoLoginRepairNowBtn.addEventListener('click', async () => {
+      autoLoginRepairNowBtn.disabled = true;
+      if (autoLoginRepairLaterBtn) autoLoginRepairLaterBtn.disabled = true;
+      clearAutoLoginRepairError();
+
+      try {
+        const syncResult = await invoke('sync_auto_login_settings', { configValue: config });
+        if (autoLoginRepairView) autoLoginRepairView.classList.add('view-hidden');
+        autoLoginRepairPromptDismissed = true;
+        const syncStatusType = syncResult?.synced === false ? 'normal' : 'success';
+        setStatus(syncResult?.message || '已开始修复开机自启动设置', syncStatusType);
+      } catch (error) {
+        showAutoLoginRepairError(String(error));
+        setStatus(String(error), 'error');
+      } finally {
+        autoLoginRepairNowBtn.disabled = false;
+        if (autoLoginRepairLaterBtn) autoLoginRepairLaterBtn.disabled = false;
+      }
+    });
+  }
+
   if (openSettingsBtn) {
     openSettingsBtn.addEventListener('click', async () => {
       openSettingsBtn.disabled = true;
@@ -520,13 +586,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         await persistConfig(newConfig);
         if (typeof startHeartbeat === 'function') startHeartbeat(nextConfig.checkInterval, nextConfig.autoCheck);
-        if (settingsView) settingsView.classList.add('view-hidden');
-        showLoginView();
 
         const syncResult = await invoke('sync_auto_login_settings', { configValue: nextConfig });
-        setStatus(syncResult?.message || '设置已保存', syncResult?.relaunched ? 'normal' : 'success');
+        if (settingsView) settingsView.classList.add('view-hidden');
+        showLoginView();
+        const syncStatusType = syncResult?.synced === false ? 'normal' : 'success';
+        setStatus(syncResult?.message || '设置已保存', syncStatusType);
       } catch (error) {
+        if (settingsView) settingsView.classList.remove('view-hidden');
         showSettingsMessage(String(error), 'error');
+        setStatus(String(error), 'error');
       } finally {
         closeSettingsBtn.disabled = false;
         if (clearConfigBtn) clearConfigBtn.disabled = false;
@@ -588,6 +657,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let config = getDefaultConfig();
   try {
     await refreshConfigFromBackend({ applyToForm: true });
+    await checkAutoLoginRepairPrompt();
   } catch (error) {
     config = getDefaultConfig();
   }

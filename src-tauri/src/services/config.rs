@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use directories::ProjectDirs;
 
-use crate::models::{AutoLoginSyncResult, ClearConfigResult, Config};
+use crate::models::{AutoLoginSyncResult, AutoLoginTaskCheckResult, ClearConfigResult, Config};
 
 #[cfg(target_os = "windows")]
 const AUTO_LOGIN_TASK_NAME: &str = "CampusNetworkAutoLogin";
@@ -27,6 +27,12 @@ enum AutoLoginTaskState {
     Missing,
     UpToDate,
     Mismatched,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AutoLoginApplyOutcome {
+    Applied,
+    PendingElevation,
 }
 
 #[cfg(target_os = "windows")]
@@ -110,26 +116,36 @@ pub fn sync_auto_login_settings(config: &Config) -> Result<AutoLoginSyncResult, 
             });
         }
 
-        if is_process_elevated()? {
-            sync_auto_login(config, false)?;
-            let message = if config.auto_login {
-                "设置已保存，已更新开机自启动配置。"
-            } else {
-                "设置已保存，已关闭开机自启动。"
-            };
-
+        if !is_process_elevated()? {
+            run_elevated_sync_auto_login(config, &target_exe)?;
             return Ok(AutoLoginSyncResult {
-                synced: true,
+                synced: false,
                 relaunched: false,
-                message: message.into(),
+                message: "设置已保存，正在请求管理员权限以完成开机自启动计划任务配置...".into(),
             });
         }
 
-        run_elevated_full_app()?;
+        let sync_outcome = sync_auto_login(config, true)?;
+
+        let (synced, message) = match sync_outcome {
+            AutoLoginApplyOutcome::Applied => {
+                let message = if config.auto_login {
+                    "设置已保存，已更新开机自启动配置。"
+                } else {
+                    "设置已保存，已关闭开机自启动。"
+                };
+                (true, message.into())
+            }
+            AutoLoginApplyOutcome::PendingElevation => (
+                false,
+                "设置已保存，正在请求管理员权限以完成开机自启动计划任务配置...".into(),
+            ),
+        };
+
         return Ok(AutoLoginSyncResult {
-            synced: false,
-            relaunched: true,
-            message: "设置已保存，正在请求管理员权限并重启程序以完成开机自启动配置...".into(),
+            synced,
+            relaunched: false,
+            message,
         });
     }
 
@@ -187,8 +203,66 @@ pub fn maybe_run_elevated_autostart_helper() -> Option<i32> {
     cleanup_legacy_auto_login_registry();
 
     match apply_auto_login_action(action, &target_exe, false) {
-        Ok(()) => Some(0),
+        Ok(_) => Some(0),
         Err(_) => Some(1),
+    }
+}
+
+pub fn check_auto_login_task_status(config: &Config) -> Result<AutoLoginTaskCheckResult, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let target_exe = std::env::current_exe().map_err(|error| error.to_string())?;
+        let task_state = inspect_auto_login_task(&target_exe)?;
+
+        if !config.auto_login {
+            return Ok(AutoLoginTaskCheckResult {
+                enabled_in_config: false,
+                task_exists: task_state != AutoLoginTaskState::Missing,
+                task_matches_current_exe: task_state == AutoLoginTaskState::UpToDate,
+                needs_attention: false,
+                message: String::new(),
+            });
+        }
+
+        let (task_exists, task_matches_current_exe, needs_attention, message) = match task_state {
+            AutoLoginTaskState::UpToDate => (
+                true,
+                true,
+                false,
+                "系统已正确配置开机自启动计划任务。".to_string(),
+            ),
+            AutoLoginTaskState::Missing => (
+                false,
+                false,
+                true,
+                "检测到你之前已开启“开机后台自动登录”，但当前系统里没有对应的计划任务，开机后将不会自动连接校园网。".to_string(),
+            ),
+            AutoLoginTaskState::Mismatched => (
+                true,
+                false,
+                true,
+                "检测到现有开机自启动计划任务仍指向旧版本或旧路径，开机后可能无法正常自动连接校园网。".to_string(),
+            ),
+        };
+
+        return Ok(AutoLoginTaskCheckResult {
+            enabled_in_config: true,
+            task_exists,
+            task_matches_current_exe,
+            needs_attention,
+            message,
+        });
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(AutoLoginTaskCheckResult {
+            enabled_in_config: config.auto_login,
+            task_exists: false,
+            task_matches_current_exe: false,
+            needs_attention: false,
+            message: String::new(),
+        })
     }
 }
 
@@ -246,7 +320,7 @@ pub fn relaunch_as_admin() -> Result<bool, String> {
 }
 
 #[cfg(target_os = "windows")]
-fn sync_auto_login(config: &Config, allow_elevation: bool) -> Result<(), String> {
+fn sync_auto_login(config: &Config, allow_elevation: bool) -> Result<AutoLoginApplyOutcome, String> {
     cleanup_legacy_auto_login_registry();
     let target_exe = std::env::current_exe().map_err(|error| error.to_string())?;
 
@@ -278,8 +352,16 @@ fn inspect_auto_login_task(target_exe: &Path) -> Result<AutoLoginTaskState, Stri
 
     let command = extract_xml_tag(&xml, "Command").unwrap_or_default();
     let arguments = extract_xml_tag(&xml, "Arguments").unwrap_or_default();
+    let disallow_start_if_on_batteries = extract_xml_tag(&xml, "DisallowStartIfOnBatteries");
+    let stop_if_going_on_batteries = extract_xml_tag(&xml, "StopIfGoingOnBatteries");
 
-    if is_expected_auto_login_task(&command, &arguments, target_exe) {
+    if is_expected_auto_login_task(
+        &command,
+        &arguments,
+        disallow_start_if_on_batteries.as_deref(),
+        stop_if_going_on_batteries.as_deref(),
+        target_exe,
+    ) {
         Ok(AutoLoginTaskState::UpToDate)
     } else {
         Ok(AutoLoginTaskState::Mismatched)
@@ -304,9 +386,17 @@ fn is_missing_task_error(message: &str) -> bool {
 }
 
 #[cfg(target_os = "windows")]
-fn is_expected_auto_login_task(command: &str, arguments: &str, target_exe: &Path) -> bool {
+fn is_expected_auto_login_task(
+    command: &str,
+    arguments: &str,
+    disallow_start_if_on_batteries: Option<&str>,
+    stop_if_going_on_batteries: Option<&str>,
+    target_exe: &Path,
+) -> bool {
     normalize_windows_path(command) == normalize_windows_path(&target_exe.to_string_lossy())
         && normalize_task_arguments(arguments) == "--hidden"
+        && !xml_bool_is_true(disallow_start_if_on_batteries)
+        && !xml_bool_is_true(stop_if_going_on_batteries)
 }
 
 #[cfg(target_os = "windows")]
@@ -343,20 +433,28 @@ fn xml_unescape(value: &str) -> String {
 }
 
 #[cfg(target_os = "windows")]
+fn xml_bool_is_true(value: Option<&str>) -> bool {
+    value
+        .map(|text| text.trim().eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "windows")]
 fn apply_auto_login_action(
     action: AutoLoginAction,
     target_exe: &Path,
     allow_elevation: bool,
-) -> Result<(), String> {
+) -> Result<AutoLoginApplyOutcome, String> {
     let result = match action {
         AutoLoginAction::Enable => create_auto_login_task(target_exe),
         AutoLoginAction::Disable => delete_auto_login_task(),
     };
 
     match result {
-        Ok(()) => Ok(()),
+        Ok(()) => Ok(AutoLoginApplyOutcome::Applied),
         Err(message) if allow_elevation && needs_elevation(&message) => {
-            run_elevated_autostart_helper(action, target_exe)
+            run_elevated_autostart_helper(action, target_exe)?;
+            Ok(AutoLoginApplyOutcome::PendingElevation)
         }
         Err(message) => Err(format_schtasks_error(&message)),
     }
@@ -364,19 +462,20 @@ fn apply_auto_login_action(
 
 #[cfg(target_os = "windows")]
 fn create_auto_login_task(target_exe: &Path) -> Result<(), String> {
-    let task_run = format!("\"{}\" --hidden", target_exe.to_string_lossy());
+    let escaped_exe = escape_powershell_single_quoted_string(&target_exe.to_string_lossy());
+    let escaped_task_name = escape_powershell_single_quoted_string(AUTO_LOGIN_TASK_NAME);
+    let script = format!(
+        "$userId = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name; \
+         $action = New-ScheduledTaskAction -Execute '{exe}' -Argument '--hidden'; \
+         $trigger = New-ScheduledTaskTrigger -AtLogOn -User $userId; \
+         $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries; \
+         $principal = New-ScheduledTaskPrincipal -UserId $userId -LogonType Interactive -RunLevel Limited; \
+         Register-ScheduledTask -TaskName '{task_name}' -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null",
+        exe = escaped_exe,
+        task_name = escaped_task_name,
+    );
 
-    run_schtasks(&[
-        "/Create",
-        "/TN",
-        AUTO_LOGIN_TASK_NAME,
-        "/SC",
-        "ONLOGON",
-        "/TR",
-        &task_run,
-        "/IT",
-        "/F",
-    ])
+    run_powershell(&script)
 }
 
 #[cfg(target_os = "windows")]
@@ -395,6 +494,40 @@ fn run_schtasks(args: &[&str]) -> Result<(), String> {
 }
 
 #[cfg(target_os = "windows")]
+fn run_powershell(script: &str) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    use std::process::Command;
+    use windows_sys::Win32::System::Threading::CREATE_NO_WINDOW;
+
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            script,
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = decode_windows_command_output(&output.stderr).trim().to_string();
+    let stdout = decode_windows_command_output(&output.stdout).trim().to_string();
+    let message = if !stderr.is_empty() { stderr } else { stdout };
+
+    if message.is_empty() {
+        Err("执行 PowerShell 计划任务配置失败。".into())
+    } else {
+        Err(message)
+    }
+}
+
+#[cfg(target_os = "windows")]
 fn run_schtasks_output(args: &[&str]) -> Result<String, String> {
     use std::os::windows::process::CommandExt;
     use std::process::Command;
@@ -406,16 +539,80 @@ fn run_schtasks_output(args: &[&str]) -> Result<String, String> {
         .output()
         .map_err(|error| error.to_string())?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stdout = decode_windows_command_output(&output.stdout);
     if output.status.success() {
         return Ok(stdout);
     }
 
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stderr = decode_windows_command_output(&output.stderr).trim().to_string();
     let stdout = stdout.trim().to_string();
     let message = if !stderr.is_empty() { stderr } else { stdout };
 
     Err(message)
+}
+
+#[cfg(target_os = "windows")]
+fn decode_windows_command_output(bytes: &[u8]) -> String {
+    if bytes.is_empty() {
+        return String::new();
+    }
+
+    if let Ok(text) = String::from_utf8(bytes.to_vec()) {
+        return text;
+    }
+
+    decode_windows_multibyte(bytes, unsafe { windows_sys::Win32::Globalization::GetOEMCP() })
+        .or_else(|| {
+            decode_windows_multibyte(bytes, unsafe {
+                windows_sys::Win32::Globalization::GetACP()
+            })
+        })
+        .unwrap_or_else(|| String::from_utf8_lossy(bytes).to_string())
+}
+
+#[cfg(target_os = "windows")]
+fn decode_windows_multibyte(bytes: &[u8], code_page: u32) -> Option<String> {
+    use windows_sys::Win32::Globalization::MultiByteToWideChar;
+
+    if bytes.is_empty() || code_page == 0 {
+        return None;
+    }
+
+    let required_len = unsafe {
+        MultiByteToWideChar(
+            code_page,
+            0,
+            bytes.as_ptr(),
+            bytes.len() as i32,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    if required_len <= 0 {
+        return None;
+    }
+
+    let mut wide = vec![0u16; required_len as usize];
+    let written = unsafe {
+        MultiByteToWideChar(
+            code_page,
+            0,
+            bytes.as_ptr(),
+            bytes.len() as i32,
+            wide.as_mut_ptr(),
+            required_len,
+        )
+    };
+    if written <= 0 {
+        return None;
+    }
+
+    Some(String::from_utf16_lossy(&wide[..written as usize]))
+}
+
+#[cfg(target_os = "windows")]
+fn escape_powershell_single_quoted_string(value: &str) -> String {
+    value.replace('\'', "''")
 }
 
 #[cfg(target_os = "windows")]
@@ -433,6 +630,17 @@ fn run_elevated_full_app() -> Result<(), String> {
     let current_pid = std::process::id();
     let parameters = format!("{flag} {pid}", flag = WAIT_FOR_PID_FLAG, pid = current_pid);
     runas_launch_current_exe(&parameters)
+}
+
+#[cfg(target_os = "windows")]
+fn run_elevated_sync_auto_login(config: &Config, target_exe: &Path) -> Result<(), String> {
+    let action = if config.auto_login {
+        AutoLoginAction::Enable
+    } else {
+        AutoLoginAction::Disable
+    };
+
+    run_elevated_autostart_helper(action, target_exe)
 }
 
 #[cfg(target_os = "windows")]
@@ -478,7 +686,10 @@ fn runas_launch_current_exe(parameters: &str) -> Result<(), String> {
             .unwrap_or_default();
         return Err(match error_code {
             1223 => "配置已保存，但你取消了管理员授权，未能完成开机自启动设置。".into(),
-            _ => "配置已保存，但拉起管理员授权失败，未能完成开机自启动设置。".into(),
+            _ => format!(
+                "配置已保存，但拉起管理员授权失败（错误码 {}），未能完成开机自启动设置。",
+                error_code
+            ),
         });
     }
 
@@ -564,6 +775,9 @@ fn cleanup_legacy_auto_login_registry() {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn sync_auto_login(_config: &Config, _allow_elevation: bool) -> Result<(), String> {
-    Ok(())
+fn sync_auto_login(
+    _config: &Config,
+    _allow_elevation: bool,
+) -> Result<AutoLoginApplyOutcome, String> {
+    Ok(AutoLoginApplyOutcome::Applied)
 }

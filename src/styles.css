@@ -348,6 +348,10 @@ input:focus, select:focus {
   z-index: 125;
 }
 
+#autoLoginRepairView {
+  z-index: 130;
+}
+
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(15px); }
   to { opacity: 1; transform: translateY(0); }

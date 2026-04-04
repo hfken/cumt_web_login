@@ -1,11 +1,11 @@
 {
-  "version": "1.20.5-beta.3.1",
-  "notes": "修复了窗口边缘显示异常的问题",
-  "pub_date": "2026-04-04T05:07:31Z",
+  "version": "1.20.5-beta.3.4",
+  "notes": "测试更新通道 beta 1.20.5-beta.3.4\n发布时间：2026-04-04T10:04:07Z\n本次构建由 scripts/publish-beta.ps1 自动发布。",
+  "pub_date": "2026-04-04T10:04:07Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDgzQ2krdmRranpRaVc1Y2owQ1dDZkMvYVE4VXVXNXJGNUVzODczNFlyNGNqcTVhSlFqa3d5UFp0ZVBUeEh2cWJycUVDa295RUJqdHI3dHJjZXhmakFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc1Mjc5MjUxCWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuNS1iZXRhLjMuMV94NjQtc2V0dXAubnNpcy56aXAKWjJJTHgyUk10YnRnQmdnWEFTNjJVdzdvNk15dTRhcjFaeis3UCtMc3Q4anBsMTRPWkNjRDJ6d1dRY1YvYU5WZUVuK3VBNzVrWitsU3RTSXVnMDVERGc9PQo=",
-      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/raw/beta/beta-assets/CUMTLogin-beta-1.20.5-beta.3.1-x64-setup.nsis.zip"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNHduVHBpTkpqOGI0cnVZcnk5R0Yrem9ROFlMMGx4TFpTcEh6azVnR01CT2w2NklWeG5yNEdaMUtsN1cvOGt2bEVORDAyQkVPTVpsV0MvREZIZFhUaFE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc1Mjk3MDQ3CWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjAuNS1iZXRhLjMuNF94NjQtc2V0dXAubnNpcy56aXAKcUdHT2l6TFJBbzBBYTVZOXZaUHFwNldlMXAwTmQxc2hSSDdCYW5VVGNaeXM4SW9OMnA0TnZmSm9nY09mVnBzSVVWVEZwVzBPU2NuUzltenMzQWQ2QWc9PQo=",
+      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/raw/beta/beta-assets/CUMTLogin-beta-1.20.5-beta.3.4-x64-setup.nsis.zip"
     }
   }
 }
