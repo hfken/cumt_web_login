@@ -121,7 +121,7 @@ pub fn sync_auto_login_settings(config: &Config) -> Result<AutoLoginSyncResult, 
             return Ok(AutoLoginSyncResult {
                 synced: false,
                 relaunched: false,
-                message: "设置已保存，正在请求管理员权限以完成开机自启动计划任务配置...".into(),
+                message: "设置已保存，正在请求管理员权限更新开机自启...".into(),
             });
         }
 
@@ -130,15 +130,15 @@ pub fn sync_auto_login_settings(config: &Config) -> Result<AutoLoginSyncResult, 
         let (synced, message) = match sync_outcome {
             AutoLoginApplyOutcome::Applied => {
                 let message = if config.auto_login {
-                    "设置已保存，已更新开机自启动配置。"
+                    "设置已保存，开机自启已更新。"
                 } else {
-                    "设置已保存，已关闭开机自启动。"
+                    "设置已保存，开机自启已关闭。"
                 };
                 (true, message.into())
             }
             AutoLoginApplyOutcome::PendingElevation => (
                 false,
-                "设置已保存，正在请求管理员权限以完成开机自启动计划任务配置...".into(),
+                "设置已保存，正在请求管理员权限更新开机自启...".into(),
             ),
         };
 
@@ -235,13 +235,13 @@ pub fn check_auto_login_task_status(config: &Config) -> Result<AutoLoginTaskChec
                 false,
                 false,
                 true,
-                "检测到你之前已开启“开机后台自动登录”，但当前系统里没有对应的计划任务，开机后将不会自动连接校园网。".to_string(),
+                "已开启开机自启，但系统里缺少对应计划任务。".to_string(),
             ),
             AutoLoginTaskState::Mismatched => (
                 true,
                 false,
                 true,
-                "检测到现有开机自启动计划任务仍指向旧版本或旧路径，开机后可能无法正常自动连接校园网。".to_string(),
+                "现有开机自启任务仍指向旧路径或旧版本。".to_string(),
             ),
         };
 
@@ -685,11 +685,8 @@ fn runas_launch_current_exe(parameters: &str) -> Result<(), String> {
             .raw_os_error()
             .unwrap_or_default();
         return Err(match error_code {
-            1223 => "配置已保存，但你取消了管理员授权，未能完成开机自启动设置。".into(),
-            _ => format!(
-                "配置已保存，但拉起管理员授权失败（错误码 {}），未能完成开机自启动设置。",
-                error_code
-            ),
+            1223 => "配置已保存，但你取消了管理员授权，开机自启未更新。".into(),
+            _ => format!("配置已保存，但无法拉起管理员授权（错误码 {}）。", error_code),
         });
     }
 
@@ -749,13 +746,13 @@ fn format_schtasks_error(message: &str) -> String {
         || lower.contains("需要提升")
         || lower.contains("elevation")
     {
-        return "配置已保存，但创建开机自启动计划任务失败：当前权限不足。请用管理员模式重新打开程序后再试。".into();
+        return "配置已保存，但权限不足，开机自启未更新。请用管理员模式重试。".into();
     }
 
     if normalized.is_empty() {
-        "配置已保存，但执行 schtasks 失败，未能完成开机自启动设置。".into()
+        "配置已保存，但执行 schtasks 失败，开机自启未更新。".into()
     } else {
-        format!("配置已保存，但开机自启动设置失败：{}", normalized)
+        format!("配置已保存，但开机自启设置失败：{}", normalized)
     }
 }
 

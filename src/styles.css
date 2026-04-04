@@ -227,10 +227,18 @@ input:focus, select:focus {
 
 .status-message {
   text-align: center;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--taupe-500);
-  height: 18px;
+  line-height: 1.45;
+  min-height: 18px;
   margin-top: 4px;
+  padding: 0 8px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .status-success { color: #16a34a; }
 .status-error { color: #dc2626; }

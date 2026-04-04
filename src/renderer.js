@@ -73,28 +73,91 @@ document.addEventListener('DOMContentLoaded', async () => {
   let autoLoginRepairPromptDismissed = false;
   let settingsScrollbarDragState = null;
 
+  const displayMessageReplacements = [
+    [
+      '设置已保存，正在请求管理员权限以完成开机自启动计划任务配置...',
+      '设置已保存，正在请求管理员权限更新开机自启...'
+    ],
+    [
+      '设置已保存，已更新开机自启动配置。',
+      '设置已保存，开机自启已更新。'
+    ],
+    [
+      '设置已保存，已关闭开机自启动。',
+      '设置已保存，开机自启已关闭。'
+    ],
+    [
+      '检测到你之前已开启“开机后台自动登录”，但当前系统里没有对应的计划任务，开机后将不会自动连接校园网。',
+      '已开启开机自启，但系统里缺少对应计划任务。'
+    ],
+    [
+      '检测到现有开机自启动计划任务仍指向旧版本或旧路径，开机后可能无法正常自动连接校园网。',
+      '现有开机自启任务仍指向旧路径或旧版本。'
+    ],
+    [
+      '已暂时跳过开机自启动修复提醒，可稍后在设置页重新保存。',
+      '已跳过本次修复提醒，可稍后在设置页重新保存。'
+    ]
+  ];
+
+  function normalizeDisplayMessage(message) {
+    return String(message ?? '').replace(/\s+/g, ' ').trim();
+  }
+
+  function compactDisplayMessage(message) {
+    let compacted = normalizeDisplayMessage(message);
+
+    displayMessageReplacements.forEach(([source, target]) => {
+      if (compacted === source) {
+        compacted = target;
+      }
+    });
+
+    compacted = compacted.replace(
+      /^配置已保存，但拉起管理员授权失败（错误码 (\d+)），未能完成开机自启动设置。$/,
+      '配置已保存，但无法拉起管理员授权（错误码 $1）。'
+    );
+    compacted = compacted.replace(
+      /^配置已保存，但你取消了管理员授权，未能完成开机自启动设置。$/,
+      '配置已保存，但你取消了管理员授权，开机自启未更新。'
+    );
+    compacted = compacted.replace(
+      /^配置已保存，但创建开机自启动计划任务失败：当前权限不足。请用管理员模式重新打开程序后再试。$/,
+      '配置已保存，但权限不足，开机自启未更新。请用管理员模式重试。'
+    );
+
+    return compacted;
+  }
+
   function showSettingsMessage(message, type = 'error') {
     if (!settingsError) return;
-    settingsError.textContent = message;
+    const normalizedMessage = normalizeDisplayMessage(message);
+    settingsError.textContent = compactDisplayMessage(normalizedMessage);
+    settingsError.title = normalizedMessage;
     settingsError.style.color = type === 'error' ? '#dc2626' : '#355f8a';
     settingsError.classList.remove('view-hidden');
+    scrollSettingsMessageIntoView();
   }
 
   function clearSettingsMessage() {
     if (!settingsError) return;
+    settingsError.title = '';
     settingsError.style.color = '#dc2626';
     settingsError.classList.add('view-hidden');
   }
 
   function showAutoLoginRepairError(message) {
     if (!autoLoginRepairError) return;
-    autoLoginRepairError.textContent = message;
+    const normalizedMessage = normalizeDisplayMessage(message);
+    autoLoginRepairError.textContent = compactDisplayMessage(normalizedMessage);
+    autoLoginRepairError.title = normalizedMessage;
     autoLoginRepairError.classList.remove('view-hidden');
   }
 
   function clearAutoLoginRepairError() {
     if (!autoLoginRepairError) return;
     autoLoginRepairError.textContent = '';
+    autoLoginRepairError.title = '';
     autoLoginRepairError.classList.add('view-hidden');
   }
 
@@ -136,6 +199,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.setTimeout(() => {
       updateSettingsCustomScrollbar();
     }, 80);
+  }
+
+  function scrollSettingsMessageIntoView() {
+    if (!settingsView || settingsView.classList.contains('view-hidden')) return;
+    if (!settingsScrollArea || !settingsError || settingsError.classList.contains('view-hidden')) return;
+
+    const scrollToBottom = behavior => {
+      settingsScrollArea.scrollTo({
+        top: settingsScrollArea.scrollHeight,
+        behavior
+      });
+      updateSettingsCustomScrollbar();
+    };
+
+    window.requestAnimationFrame(() => {
+      scrollToBottom('smooth');
+      window.requestAnimationFrame(() => {
+        updateSettingsCustomScrollbar();
+      });
+    });
+
+    window.setTimeout(() => {
+      scrollToBottom('auto');
+      updateSettingsCustomScrollbar();
+    }, 120);
   }
 
   function scrollSettingsByTrackPosition(clientY) {
@@ -239,7 +327,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const taskStatus = await invoke('check_auto_login_task_status', { configValue: config });
       if (!taskStatus?.needsAttention) return;
       if (autoLoginRepairMessage) {
-        autoLoginRepairMessage.textContent = taskStatus.message || '检测到当前系统里的开机自启动任务异常，开机后可能不会自动连接校园网。';
+        const rawMessage = taskStatus.message || '检测到当前系统里的开机自启动任务异常，开机后可能不会自动连接校园网。';
+        autoLoginRepairMessage.textContent = compactDisplayMessage(rawMessage);
+        autoLoginRepairMessage.title = normalizeDisplayMessage(rawMessage);
       }
       clearAutoLoginRepairError();
       if (autoLoginRepairView) autoLoginRepairView.classList.remove('view-hidden');
@@ -450,7 +540,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function setStatus(msg, type = 'normal') {
-    statusMessage.textContent = msg;
+    const normalizedMessage = normalizeDisplayMessage(msg);
+    statusMessage.textContent = compactDisplayMessage(normalizedMessage);
+    statusMessage.title = normalizedMessage;
     statusMessage.className = 'status-message';
     if (type === 'success') statusMessage.classList.add('status-success');
     if (type === 'error') statusMessage.classList.add('status-error');
