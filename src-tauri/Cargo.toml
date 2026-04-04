@@ -23,6 +23,7 @@ tauri-plugin-single-instance = { git = "https://github.com/tauri-apps/plugins-wo
 winreg = "0.52"
 windows-sys = { version = "0.59", features = [
   "Win32_Foundation",
+  "Win32_Globalization",
   "Win32_System_Registry",
   "Win32_Security",
   "Win32_System_Threading",

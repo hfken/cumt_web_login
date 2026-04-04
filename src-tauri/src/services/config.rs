@@ -481,16 +481,75 @@ fn run_schtasks_output(args: &[&str]) -> Result<String, String> {
         .output()
         .map_err(|error| error.to_string())?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stdout = decode_windows_command_output(&output.stdout);
     if output.status.success() {
         return Ok(stdout);
     }
 
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stderr = decode_windows_command_output(&output.stderr).trim().to_string();
     let stdout = stdout.trim().to_string();
     let message = if !stderr.is_empty() { stderr } else { stdout };
 
     Err(message)
+}
+
+#[cfg(target_os = "windows")]
+fn decode_windows_command_output(bytes: &[u8]) -> String {
+    if bytes.is_empty() {
+        return String::new();
+    }
+
+    if let Ok(text) = String::from_utf8(bytes.to_vec()) {
+        return text;
+    }
+
+    decode_windows_multibyte(bytes, unsafe { windows_sys::Win32::Globalization::GetOEMCP() })
+        .or_else(|| {
+            decode_windows_multibyte(bytes, unsafe {
+                windows_sys::Win32::Globalization::GetACP()
+            })
+        })
+        .unwrap_or_else(|| String::from_utf8_lossy(bytes).to_string())
+}
+
+#[cfg(target_os = "windows")]
+fn decode_windows_multibyte(bytes: &[u8], code_page: u32) -> Option<String> {
+    use windows_sys::Win32::Globalization::MultiByteToWideChar;
+
+    if bytes.is_empty() || code_page == 0 {
+        return None;
+    }
+
+    let required_len = unsafe {
+        MultiByteToWideChar(
+            code_page,
+            0,
+            bytes.as_ptr(),
+            bytes.len() as i32,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    if required_len <= 0 {
+        return None;
+    }
+
+    let mut wide = vec![0u16; required_len as usize];
+    let written = unsafe {
+        MultiByteToWideChar(
+            code_page,
+            0,
+            bytes.as_ptr(),
+            bytes.len() as i32,
+            wide.as_mut_ptr(),
+            required_len,
+        )
+    };
+    if written <= 0 {
+        return None;
+    }
+
+    Some(String::from_utf16_lossy(&wide[..written as usize]))
 }
 
 #[cfg(target_os = "windows")]
