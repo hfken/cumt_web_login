@@ -13,6 +13,8 @@ const DEFAULT_PORTAL_ORIGIN: &str = "http://10.2.5.251:801";
 const STARTUP_AUTO_LOGIN_ATTEMPTS: usize = 10;
 const STARTUP_AUTO_LOGIN_RETRY_DELAY: Duration = Duration::from_secs(5);
 const STARTUP_AUTO_LOGIN_TITLE: &str = "校园网自动登录";
+const DIRECT_CONNECT_FAILED_MESSAGE: &str =
+    "无法直连校园网服务器；如果开启了 Clash 等代理软件的 TUN 模式，请先关闭后重试";
 
 struct PortalEndpoints {
     status_origin: String,
@@ -126,9 +128,9 @@ pub async fn login(config: Config, app_handle: AppHandle, force: bool) -> LoginR
         }
     }
 
-    let client = match build_client(5) {
+    let client = match build_direct_client(5) {
         Ok(client) => client,
-        Err(_) => return request_failed(),
+        Err(_) => return direct_request_failed(),
     };
 
     let timestamp = now_millis();
@@ -166,7 +168,7 @@ pub async fn login(config: Config, app_handle: AppHandle, force: bool) -> LoginR
         }
     }
 
-    request_failed()
+    direct_request_failed()
 }
 
 pub async fn logout() -> LoginResult {
@@ -175,9 +177,9 @@ pub async fn logout() -> LoginResult {
 }
 
 async fn check_connection_with_config(config: &Config) -> StatusResult {
-    let client = match build_client(3) {
+    let client = match build_direct_client(3) {
         Ok(client) => client,
-        Err(_) => return offline_status("无法连接校园网服务器"),
+        Err(_) => return offline_status(DIRECT_CONNECT_FAILED_MESSAGE),
     };
     let endpoints = resolve_endpoints(config);
 
@@ -218,7 +220,7 @@ async fn check_connection_with_config(config: &Config) -> StatusResult {
         }
     }
 
-    offline_status("无法连接校园网服务器")
+    offline_status(DIRECT_CONNECT_FAILED_MESSAGE)
 }
 
 async fn logout_with_config(config: &Config) -> LoginResult {
@@ -233,9 +235,9 @@ async fn logout_with_config(config: &Config) -> LoginResult {
         };
     }
 
-    let client = match build_client(5) {
+    let client = match build_direct_client(5) {
         Ok(client) => client,
-        Err(_) => return request_failed(),
+        Err(_) => return direct_request_failed(),
     };
 
     let timestamp = now_millis();
@@ -258,12 +260,13 @@ async fn logout_with_config(config: &Config) -> LoginResult {
         }
     }
 
-    request_failed()
+    direct_request_failed()
 }
 
-fn build_client(timeout_secs: u64) -> Result<Client, reqwest::Error> {
+fn build_direct_client(timeout_secs: u64) -> Result<Client, reqwest::Error> {
     Client::builder()
         .timeout(Duration::from_secs(timeout_secs))
+        .no_proxy()
         .build()
 }
 
@@ -306,10 +309,10 @@ fn offline_status(message: &str) -> StatusResult {
     }
 }
 
-fn request_failed() -> LoginResult {
+fn direct_request_failed() -> LoginResult {
     LoginResult {
         success: false,
-        message: "网络请求失败".into(),
+        message: DIRECT_CONNECT_FAILED_MESSAGE.into(),
         ..Default::default()
     }
 }
@@ -365,5 +368,6 @@ fn is_retryable_startup_failure(result: &LoginResult) -> bool {
         && !result.needs_confirm
         && (result.message.contains("网络请求失败")
             || result.message.contains("无法连接校园网服务器")
+            || result.message.contains("无法直连校园网服务器")
             || result.message.contains("未登录"))
 }

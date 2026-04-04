@@ -1,6 +1,6 @@
 [package]
 name = "cumt_login"
-version = "1.20.5-beta.2"
+version = "1.20.5-beta.3"
 description = "中国矿业大学校园网自动登录"
 authors = ["CUMT"]
 edition = "2021"
