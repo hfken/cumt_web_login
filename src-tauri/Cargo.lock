@@ -765,7 +765,7 @@ dependencies = [
 
 [[package]]
 name = "cumt_login"
-version = "1.21.1-beta.1"
+version = "1.21.1-beta.2"
 dependencies = [
  "directories",
  "fastrand 2.3.0",

@@ -167,19 +167,19 @@
             <line x1="12" y1="9" x2="12" y2="13"></line>
             <line x1="12" y1="17" x2="12.01" y2="17"></line>
           </svg>
-          <h2 style="margin: 0;">确认清空配置</h2>
+          <h2 style="margin: 0;">确认还原设置</h2>
         </div>
       </div>
       <div class="settings-content">
         <p style="font-size: 13px; color: var(--taupe-700); line-height: 1.8;">
-          这会删除当前设备里保存的学号、密码、运营商和偏好设置。<br><br>
-          当前已经联网的状态不会被强制断开，现有开机自启任务也会保留。<br><br>
-          确认要继续清空吗？
+          这会删除当前设备里保存的学号、密码、运营商和偏好设置，并删除开机自启计划任务。<br><br>
+          当前已经联网的状态不会被强制断开，但下次开机将不再自动登录校园网。<br><br>
+          确认要继续还原吗？
         </p>
       </div>
       <div style="display: flex; gap: 12px; margin-top: auto; flex: none;">
         <button id="clearConfigConfirmCancelBtn" class="secondary-btn" style="flex: 1; padding: 12px 0;">取消</button>
-        <button id="clearConfigConfirmOkBtn" class="primary-btn confirm-danger-btn" style="flex: 1.4; padding: 12px 0;">确认清空</button>
+        <button id="clearConfigConfirmOkBtn" class="primary-btn confirm-danger-btn" style="flex: 1.4; padding: 12px 0;">确认还原</button>
       </div>
     </div>
 
@@ -285,7 +285,7 @@
                 <path d="M14 11v6"></path>
               </svg>
             </span>
-            <span class="tab-action-label">清空配置</span>
+            <span class="tab-action-label">还原设置</span>
           </button>
           <button id="checkUpdateBtn" class="secondary-btn tab-action-btn">
             <span class="tab-action-icon" aria-hidden="true">

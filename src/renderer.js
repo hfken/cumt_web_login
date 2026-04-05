@@ -34,6 +34,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const settingsScrollArea = document.getElementById('settingsScrollArea');
   const settingsCustomScrollbar = document.getElementById('settingsCustomScrollbar');
   const settingsCustomScrollbarThumb = document.getElementById('settingsCustomScrollbarThumb');
+  const settingsActionsGlass = document.querySelector('#settingsView .settings-actions-glass');
+  const settingsActionsPillGroup = document.querySelector('#settingsView .settings-actions-pill-group');
   const backToLoginBtn = document.getElementById('backToLoginBtn');
   const checkUpdateBtn = document.getElementById('checkUpdateBtn');
   const installBetaBtn = document.getElementById('installBetaBtn');
@@ -49,6 +51,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   let isBetaBuild = false;
   const startupVersion = await getCurrentVersion();
   isBetaBuild = String(startupVersion).includes('-beta');
+  let settingsActionsAnimation = null;
+  let settingsDirtyState = false;
+  let settingsActionsPillAnimation = null;
+  let settingsSaveButtonAnimation = null;
 
   const confirmView = document.getElementById('confirmView');
   const confirmOnlineUser = document.getElementById('confirmOnlineUser');
@@ -201,6 +207,190 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 80);
   }
 
+  function getSettingsActionsDirtyPadding() {
+    if (!settingsActionsGlass || !closeSettingsBtn) return 0;
+    const gap = 10;
+    return closeSettingsBtn.offsetWidth + gap;
+  }
+
+  function applySettingsActionsDirtyState(isDirty) {
+    if (!settingsActionsGlass || !closeSettingsBtn || !settingsActionsPillGroup) return;
+
+    settingsDirtyState = !!isDirty;
+    settingsActionsGlass.style.paddingRight = isDirty ? `${getSettingsActionsDirtyPadding()}px` : '0px';
+    settingsActionsPillGroup.style.transform = 'translateX(0)';
+    closeSettingsBtn.style.opacity = isDirty ? '1' : '0';
+    closeSettingsBtn.style.visibility = isDirty ? 'visible' : 'hidden';
+    closeSettingsBtn.style.pointerEvents = isDirty ? 'auto' : 'none';
+  }
+
+  function updateSettingsActionsDirtyState(forceDirty = null, options = {}) {
+    if (!settingsActionsGlass || !closeSettingsBtn || !settingsActionsPillGroup) return;
+
+    const { animate = !settingsView?.classList.contains('view-hidden') } = options;
+    const nextDirty = !!(forceDirty ?? hasUnsavedSettings());
+
+    if (nextDirty === settingsDirtyState && !animate) {
+      applySettingsActionsDirtyState(nextDirty);
+      return;
+    }
+
+    if (nextDirty === settingsDirtyState) return;
+
+    const pillRectBefore = settingsActionsPillGroup.getBoundingClientRect();
+
+    if (settingsActionsPillAnimation) {
+      settingsActionsPillAnimation.cancel();
+      settingsActionsPillAnimation = null;
+    }
+
+    if (settingsSaveButtonAnimation) {
+      settingsSaveButtonAnimation.cancel();
+      settingsSaveButtonAnimation = null;
+    }
+
+    if (!animate) {
+      applySettingsActionsDirtyState(nextDirty);
+      return;
+    }
+
+    const targetPadding = nextDirty ? getSettingsActionsDirtyPadding() : 0;
+    const currentOpacity = parseFloat(window.getComputedStyle(closeSettingsBtn).opacity) || 0;
+    const targetOpacity = nextDirty ? 1 : 0;
+
+    if (nextDirty) {
+      closeSettingsBtn.style.visibility = 'visible';
+      closeSettingsBtn.style.pointerEvents = 'none';
+    }
+
+    settingsActionsGlass.style.paddingRight = `${targetPadding}px`;
+    const pillRectAfter = settingsActionsPillGroup.getBoundingClientRect();
+    const pillDeltaX = pillRectBefore.left - pillRectAfter.left;
+
+    if (Math.abs(pillDeltaX) > 0.5 && typeof settingsActionsPillGroup.animate === 'function') {
+      settingsActionsPillGroup.style.transform = `translateX(${pillDeltaX}px)`;
+      settingsActionsPillAnimation = settingsActionsPillGroup.animate(
+        [
+          { transform: `translateX(${pillDeltaX}px)` },
+          { transform: 'translateX(0)' }
+        ],
+        {
+          duration: 460,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+          fill: 'forwards'
+        }
+      );
+
+      settingsActionsPillAnimation.onfinish = () => {
+        settingsActionsPillGroup.style.transform = 'translateX(0)';
+        settingsActionsPillAnimation = null;
+      };
+
+      settingsActionsPillAnimation.oncancel = () => {
+        settingsActionsPillGroup.style.transform = 'translateX(0)';
+        settingsActionsPillAnimation = null;
+      };
+    } else {
+      settingsActionsPillGroup.style.transform = 'translateX(0)';
+    }
+
+    if (typeof closeSettingsBtn.animate === 'function') {
+      settingsSaveButtonAnimation = closeSettingsBtn.animate(
+        [
+          { opacity: currentOpacity },
+          { opacity: targetOpacity }
+        ],
+        {
+          duration: nextDirty ? 320 : 220,
+          easing: 'ease',
+          fill: 'forwards'
+        }
+      );
+
+      settingsSaveButtonAnimation.onfinish = () => {
+        closeSettingsBtn.style.opacity = `${targetOpacity}`;
+        closeSettingsBtn.style.visibility = nextDirty ? 'visible' : 'hidden';
+        closeSettingsBtn.style.pointerEvents = nextDirty ? 'auto' : 'none';
+        settingsSaveButtonAnimation = null;
+      };
+
+      settingsSaveButtonAnimation.oncancel = () => {
+        settingsSaveButtonAnimation = null;
+      };
+    } else {
+      closeSettingsBtn.style.transition = `opacity ${nextDirty ? 0.32 : 0.22}s ease`;
+      window.requestAnimationFrame(() => {
+        closeSettingsBtn.style.opacity = `${targetOpacity}`;
+      });
+      window.setTimeout(() => {
+        closeSettingsBtn.style.visibility = nextDirty ? 'visible' : 'hidden';
+        closeSettingsBtn.style.pointerEvents = nextDirty ? 'auto' : 'none';
+      }, nextDirty ? 320 : 220);
+    }
+
+    settingsDirtyState = nextDirty;
+  }
+
+  function playSettingsActionsEntrance() {
+    if (!settingsActionsGlass) return;
+
+    if (settingsActionsAnimation) {
+      settingsActionsAnimation.cancel();
+      settingsActionsAnimation = null;
+    }
+
+    settingsActionsGlass.style.opacity = '0';
+    settingsActionsGlass.style.transform = 'translateY(calc(100% + 96px)) scale(0.95)';
+    void settingsActionsGlass.offsetHeight;
+
+    if (typeof settingsActionsGlass.animate === 'function') {
+      settingsActionsAnimation = settingsActionsGlass.animate(
+        [
+          {
+            opacity: 0,
+            transform: 'translateY(calc(100% + 96px)) scale(0.95)'
+          },
+          {
+            opacity: 1,
+            transform: 'translateY(0) scale(1)'
+          }
+        ],
+        {
+          duration: 820,
+          easing: 'cubic-bezier(0.16, 0.92, 0.2, 1)',
+          fill: 'forwards'
+        }
+      );
+
+      settingsActionsAnimation.onfinish = () => {
+        settingsActionsGlass.style.opacity = '1';
+        settingsActionsGlass.style.transform = 'translateY(0) scale(1)';
+        settingsActionsAnimation = null;
+      };
+
+      settingsActionsAnimation.oncancel = () => {
+        settingsActionsAnimation = null;
+      };
+      return;
+    }
+
+    settingsActionsGlass.style.transition = 'transform 0.82s cubic-bezier(0.16, 0.92, 0.2, 1), opacity 0.48s ease';
+    window.requestAnimationFrame(() => {
+      settingsActionsGlass.style.opacity = '1';
+      settingsActionsGlass.style.transform = 'translateY(0) scale(1)';
+    });
+  }
+
+  function scheduleSettingsActionsEntrance() {
+    if (!settingsActionsGlass) return;
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        playSettingsActionsEntrance();
+      });
+    });
+  }
+
   function scrollSettingsMessageIntoView() {
     if (!settingsView || settingsView.classList.contains('view-hidden')) return;
     if (!settingsScrollArea || !settingsError || settingsError.classList.contains('view-hidden')) return;
@@ -293,6 +483,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (configValue.autoCheck === false) checkIntervalWrapper.classList.add('collapsed');
       else checkIntervalWrapper.classList.remove('collapsed');
     }
+
+    updateSettingsActionsDirtyState(false, { animate: false });
   }
 
   function normalizeConfig(configValue) {
@@ -317,6 +509,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function hasUnsavedSettings() {
     return JSON.stringify(normalizeConfig(collectDraftConfig())) !== JSON.stringify(normalizeConfig(config));
+  }
+
+  function bindSettingsDirtyState() {
+    const watchInput = (element, eventName = 'input') => {
+      if (!element) return;
+      element.addEventListener(eventName, () => {
+        updateSettingsActionsDirtyState(null, { animate: true });
+      });
+    };
+
+    watchInput(studentIdInput);
+    watchInput(passwordInput);
+    watchInput(portalAddressInput);
+    watchInput(checkIntervalInput);
+    watchInput(operatorSelect, 'change');
+    watchInput(autoLoginCheck, 'change');
+    watchInput(autoCheckInput, 'change');
   }
 
   async function checkAutoLoginRepairPrompt() {
@@ -595,6 +804,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (autoCheckInput.checked) checkIntervalWrapper.classList.remove('collapsed');
         else checkIntervalWrapper.classList.add('collapsed');
       }
+      updateSettingsActionsDirtyState(null, { animate: true });
       scheduleSettingsCustomScrollbarRefresh();
     });
   }
@@ -726,6 +936,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         await refreshConfigFromBackend({ applyToForm: true });
         if (settingsView) settingsView.classList.remove('view-hidden');
+        updateSettingsActionsDirtyState(false, { animate: false });
+        scheduleSettingsActionsEntrance();
         if (settingsScrollArea) settingsScrollArea.scrollTop = 0;
         scheduleSettingsCustomScrollbarRefresh();
       } catch (error) {
@@ -830,10 +1042,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         config = getDefaultConfig();
         applyConfigToForm(config);
         if (typeof startHeartbeat === 'function') startHeartbeat(config.checkInterval, config.autoCheck);
+        updateSettingsActionsDirtyState(false, { animate: false });
         overrideSuccessView = true;
         showLoginView();
         if (settingsView) settingsView.classList.add('view-hidden');
-        setStatus(result?.message || '已清空本地保存的账号配置，当前网络连接状态不受影响。', 'normal');
+        const clearMessage = result?.message || '已清除所有本地配置。';
+        const clearStatusType = /但|失败|未能/.test(clearMessage) ? 'error' : 'normal';
+        setStatus(clearMessage, clearStatusType);
       } catch (error) {
         showSettingsMessage(String(error), 'error');
       } finally {
@@ -844,6 +1059,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Check Updates Logic
+  bindSettingsDirtyState();
+
   if (checkUpdateBtn) {
     checkUpdateBtn.addEventListener('click', async () => {
       checkUpdateBtn.disabled = true;
