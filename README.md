@@ -37,22 +37,48 @@
 - Rust 工具链
 - Visual Studio C++ Build Tools
 
-## 开发
+## 快速开始
+
+### 开发运行
 
 ```bash
 npm install
 npm run tauri dev
 ```
 
+适合改界面、调交互、验证登录流程。这个阶段不需要 updater 私钥。
+
 前端静态资源直接位于 `src/`，Tauri 的 `devPath` / `distDir` 也都指向这个目录。
 
-## 构建
+### 普通构建
 
 ```bash
 npm run tauri build
 ```
 
 构建完成后，安装包和 updater 产物会输出到 `src-tauri/target/release/bundle/nsis/`。
+
+## 构建与密钥说明
+
+- 本地开发运行 `npm run tauri dev` 不需要 updater 密钥。
+- 按当前仓库配置直接执行 `npm run tauri build` 时，通常需要提供 updater 私钥和私钥密码，因为打包目标包含 `updater` 签名产物。
+- 当前 updater 公钥已经写入 `src-tauri/tauri.conf.json`，一般不需要额外手动提供公钥文件；真正敏感且必须保管好的是私钥和私钥密码。
+- 如果只是给自己本地验证功能、并不需要自动更新签名，可以临时移除 `src-tauri/tauri.conf.json` 里的 `updater` 打包目标后再构建测试包。
+- 如果要发布正式版或测试版，并保留客户端自动更新能力，则必须使用同一套 updater 私钥签名；否则客户端会因为验签不一致而无法安装更新。
+- beta 发布脚本 `scripts/publish-beta.ps1` 也依赖 `TAURI_PRIVATE_KEY` 与 `TAURI_KEY_PASSWORD`，可通过环境变量或脚本引导输入提供。
+
+### 协作者最常见的三种场景
+
+- 只改代码并本地运行：执行 `npm install`、`npm run tauri dev`，不需要密钥。
+- 只想本地打一个测试安装包：可以先确认是否保留 `updater` target；若保留，通常仍需要私钥；若只是自测，可临时去掉 `updater` target 后再 `npm run tauri build`。
+- 需要产出可分发、可自动更新的正式包或测试包：必须准备好同一套 updater 私钥和密码，并同步更新版本号、签名产物和对应的 `updater*.json`。
+
+## 协作建议
+
+- 接手前先确认版本号是否同时和 `src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`、`updater.json`、`updater-beta.json` 保持一致。
+- 只做界面或逻辑修改时，优先用 `npm run tauri dev` 验证，不必一开始就碰签名和发版流程。
+- 若要交付给其他人安装，先确认自己构建出来的是“仅本地测试包”还是“带自动更新能力的正式包”，两者对密钥和元数据要求不同。
+- 若要维护测试通道，优先使用 `scripts/publish-beta.ps1`，不要只替换安装包文件而忘记同步 `updater-beta.json`。
 
 ## 项目结构
 
