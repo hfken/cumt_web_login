@@ -1,11 +1,11 @@
 {
-  "version": "1.21.0",
-  "notes": "校园网自动登录 v1.21.0 更新内容（本次更新与测试版v1.21.1-beta.1功能相同）：\n1.开机自启动改为添加计划任务启动，优先级更高 \n2.修复窗口边缘显示问题 \n3.优化设置页面的UI体验",
-  "pub_date": "2026-03-27T12:00:00Z",
+  "version": "1.21.1",
+  "notes": "校园网自动登录 v1.21.1 更新内容：\n1.优化了ui体验和提示字符长度显示",
+  "pub_date": "2026-04-06T07:11:26Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDRpdjMxVG16b3dOV015TDV0K2NtUjh5K0llRDZJTFdsaGNWbFNkOFBQQ2gxWlZwWVJKeDRhRlpBZm5RbTFzdW9PTG9Vd3JrbFdTQVE2b3JXdFRiYlFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc1MzAxNzg3CWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjEuMF94NjQtc2V0dXAubnNpcy56aXAKZDBnSW44R2V1VlIyNTBUSGYrbjFpTithdHdJZFNmZnhQUHAvYmNCUWN2YkJza2w0VGZxSk1sVWR0U2JNNFA1YUF6cUZIdjJCUDNaZ05NNFpwLzNpQnc9PQo=",
-      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/releases/download/1.21.0/%E4%B8%AD%E5%9B%BD%E7%9F%BF%E4%B8%9A%E5%A4%A7%E5%AD%A6%E6%A0%A1%E5%9B%AD%E7%BD%91%E8%87%AA%E5%8A%A8%E7%99%BB%E5%BD%95_1.21.0_x64-setup.nsis.zip"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRMzlueGFQWDEzNDMrd0l4bnByazVEWXU0cHBnQmhoTEVpODNMRUx5UEdZelVxbWo3M2RoQ0lmelZ4aXVLQzJPQnczY3V5UGVCWXdPV0JPd3pRSjJlODNxSVI0UjV2ZEEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc1NDU5NTk1CWZpbGU65Lit5Zu955+/5Lia5aSn5a2m5qCh5Zut572R6Ieq5Yqo55m75b2VXzEuMjEuMV94NjQtc2V0dXAubnNpcy56aXAKYXlnS2VCK2U2WWo5dHRiQmRoaXBxOUM3cENRT2c1NW1vNkpScXdOeE1Zd1pLWXA2dFM5TUZRMHpYQitLVU93eVBjM0lDUndQYVM2Q3RHdUE3U1F2QlE9PQo=",
+      "url": "https://gitee.com/huangyaowei2005/cumt_web_login/releases/download/1.21.1/%E4%B8%AD%E5%9B%BD%E7%9F%BF%E4%B8%9A%E5%A4%A7%E5%AD%A6%E6%A0%A1%E5%9B%AD%E7%BD%91%E8%87%AA%E5%8A%A8%E7%99%BB%E5%BD%95_1.21.1_x64-setup.nsis.zip"
     }
   }
 }
