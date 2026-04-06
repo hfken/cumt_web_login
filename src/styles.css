@@ -350,6 +350,7 @@ input:focus, select:focus {
 
 #settingsView {
   padding: 22px 0 0;
+  animation: settingsViewFadeIn 0.24s ease-out;
 }
 
 #unsavedConfirmView {
@@ -367,6 +368,11 @@ input:focus, select:focus {
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(15px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes settingsViewFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .settings-header h2 {
@@ -490,77 +496,115 @@ input:focus, select:focus {
   right: 22px;
   bottom: 18px;
   display: flex;
-  gap: 8px;
+  justify-content: center;
   align-items: center;
-  padding: 10px;
+  box-sizing: border-box;
+  padding-right: 0;
   z-index: 6;
+  transform: translateY(0);
+  opacity: 1;
+  transform-origin: center bottom;
+  will-change: transform, opacity;
+}
+
+.settings-actions-pill-group {
+  position: relative;
+  display: flex;
+  flex: none;
+  width: min(100%, 272px);
+  gap: 8px;
+  align-items: stretch;
+  padding: 8px;
+  min-width: 0;
+  margin-inline: auto;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(247, 244, 240, 0.3) 42%, rgba(238, 233, 227, 0.42) 100%);
+    linear-gradient(180deg, rgba(252, 250, 247, 0.82) 0%, rgba(245, 240, 234, 0.88) 46%, rgba(235, 229, 222, 0.92) 100%);
   backdrop-filter: blur(14px) saturate(135%);
   -webkit-backdrop-filter: blur(14px) saturate(135%);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(176, 162, 148, 0.46);
   border-radius: 999px;
   box-shadow:
     0 18px 36px rgba(111, 95, 81, 0.16),
     0 6px 14px rgba(111, 95, 81, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.26);
 }
 
-.settings-actions-glass::before {
+.settings-actions-pill-group::before {
   content: "";
   position: absolute;
   inset: 1px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.06) 100%);
   pointer-events: none;
 }
 
-.settings-actions-glass::after {
-  content: none;
-}
-
-.settings-actions-glass > button {
+.settings-actions-pill-group > button,
+.settings-save-btn {
   position: relative;
   z-index: 2;
   min-width: 0;
-  padding: 9px 8px 8px;
+  padding: 7px 7px 6px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.2;
   letter-spacing: 0;
   white-space: normal;
   transition: all 0.22s ease;
 }
 
-.settings-actions-glass > .secondary-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(191, 181, 171, 0.18);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+.settings-actions-pill-group > .tab-action-btn {
+  flex: 1;
 }
 
-.settings-actions-glass > .secondary-btn:hover {
-  background: rgba(255, 255, 255, 0.34);
-  border-color: rgba(166, 150, 136, 0.28);
+.settings-actions-pill-group > .secondary-btn {
+  background: rgba(252, 249, 245, 0.74);
+  border-color: rgba(176, 162, 148, 0.42);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+}
+
+.settings-actions-pill-group > .secondary-btn:hover {
+  background: rgba(255, 252, 248, 0.92);
+  border-color: rgba(160, 145, 131, 0.5);
   transform: translateY(-1px);
 }
 
-.settings-actions-glass > .primary-btn {
+.settings-save-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  z-index: 7;
+  flex: 0.82;
+  min-width: 102px;
+  min-height: 54px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-inline: 12px;
   background: var(--taupe-700);
-  border: 1px solid rgba(111, 95, 81, 0.2);
+  color: #ffffff;
+  border: 1px solid var(--taupe-700);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    0 10px 22px rgba(111, 95, 81, 0.2),
-    0 2px 4px rgba(111, 95, 81, 0.12);
+    0 10px 20px rgba(111, 95, 81, 0.16),
+    0 2px 6px rgba(111, 95, 81, 0.1);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-50%);
+  will-change: opacity;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
-.settings-actions-glass > .primary-btn::before {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border-radius: 999px;
-  border: 1px solid rgba(117, 100, 83, 0.14);
-  background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.14), transparent 70%);
-  pointer-events: none;
+.settings-save-btn:hover {
+  background: var(--taupe-800);
+  border-color: var(--taupe-800);
+  box-shadow:
+    0 12px 24px rgba(92, 78, 66, 0.18),
+    0 3px 8px rgba(92, 78, 66, 0.12);
 }
 
 .tab-action-btn {
@@ -568,8 +612,8 @@ input:focus, select:focus {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 58px;
+  gap: 3px;
+  min-height: 52px;
   text-align: center;
 }
 
@@ -577,8 +621,8 @@ input:focus, select:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
 }
 
@@ -589,19 +633,54 @@ input:focus, select:focus {
 .tab-action-label {
   display: block;
   max-width: 100%;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   line-height: 1.15;
   letter-spacing: 0.01em;
 }
 
 .tab-action-btn-primary .tab-action-icon {
-  width: 21px;
-  height: 21px;
+  width: 19px;
+  height: 19px;
 }
 
 .tab-action-btn-primary .tab-action-label {
-  font-size: 10.5px;
+  font-size: 9.5px;
+}
+
+@media (max-width: 420px) {
+  .settings-actions-pill-group {
+    width: min(100%, 248px);
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .settings-actions-pill-group > button,
+  .settings-save-btn {
+    padding: 7px 5px 6px;
+  }
+
+  .settings-save-btn {
+    min-width: 92px;
+    min-height: 50px;
+    padding-top: 7px;
+    padding-bottom: 7px;
+    padding-inline: 10px;
+  }
+
+  .tab-action-label {
+    font-size: 8.6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-actions-glass {
+    will-change: auto;
+  }
+
+  .settings-save-btn {
+    will-change: auto;
+  }
 }
 
 .settings-section {

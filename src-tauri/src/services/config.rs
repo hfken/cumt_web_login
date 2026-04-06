@@ -95,9 +95,33 @@ pub fn clear_config_with_result() -> Result<ClearConfigResult, String> {
         Err(error) => return Err(format!("清除本地配置失败：{}", error)),
     }
 
+    #[cfg(target_os = "windows")]
+    {
+        let cleared_config = Config::default();
+
+        let message = match sync_auto_login(&cleared_config, true) {
+            Ok(AutoLoginApplyOutcome::Applied) => {
+                "已清除所有本地配置，并删除开机自启计划任务。".to_string()
+            }
+            Ok(AutoLoginApplyOutcome::PendingElevation) => {
+                "已清除所有本地配置，正在请求管理员权限删除开机自启计划任务...".to_string()
+            }
+            Err(error) => format!(
+                "已清除本地配置，但删除开机自启计划任务失败：{}",
+                normalize_clear_config_auto_login_error(&error)
+            ),
+        };
+
+        return Ok(ClearConfigResult {
+            cleared: true,
+            message,
+        });
+    }
+
+    #[cfg(not(target_os = "windows"))]
     Ok(ClearConfigResult {
         cleared: true,
-        message: "已清空本地保存的账号配置，原有开机自启动设置保持不变。".into(),
+        message: "已清除所有本地配置。".into(),
     })
 }
 
@@ -753,6 +777,22 @@ fn format_schtasks_error(message: &str) -> String {
         "配置已保存，但执行 schtasks 失败，开机自启未更新。".into()
     } else {
         format!("配置已保存，但开机自启设置失败：{}", normalized)
+    }
+}
+
+fn normalize_clear_config_auto_login_error(message: &str) -> String {
+    let normalized = message.trim();
+
+    if normalized.contains("你取消了管理员授权") {
+        "你取消了管理员授权，未能删除开机自启计划任务。".into()
+    } else if normalized.contains("无法拉起管理员授权") {
+        "无法拉起管理员授权，未能删除开机自启计划任务。".into()
+    } else if normalized.contains("权限不足") {
+        "权限不足，未能删除开机自启计划任务。请用管理员模式重试。".into()
+    } else if normalized.contains("开机自启未更新") {
+        "未能删除开机自启计划任务。".into()
+    } else {
+        normalized.to_string()
     }
 }
 
