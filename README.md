@@ -5,9 +5,9 @@
 ![Rust](https://img.shields.io/badge/Rust-Native-black?logo=rust)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows)
 
-面向中国矿业大学校园网的 Windows 桌面自动登录客户端，基于 `Tauri 1.x + Rust + 原生 HTML/CSS/JavaScript` 实现。当前产品版本为 `1.21.1`。
+本项目是面向中国矿业大学校园网认证场景的 Windows 桌面自动登录客户端，基于 `Tauri 1.x + Rust + 原生 HTML/CSS/JavaScript` 实现。当前产品版本为 `1.21.1`。
 
-它的目标不是堆复杂功能，而是把“开机后安静驻留、需要时自动连接、掉线后及时提醒、更新时尽量少打扰”这条链路做好。
+应用聚焦于校园网认证的常用流程，提供后台驻留、开机自动登录、断线检测、计划任务自启动修复及应用内更新等能力。
 
 ## 功能概览
 
@@ -37,7 +37,7 @@
 - Rust 工具链
 - Visual Studio C++ Build Tools
 
-## 快速开始
+## 使用与开发
 
 ### 开发运行
 
@@ -46,7 +46,7 @@ npm install
 npm run tauri dev
 ```
 
-适合改界面、调交互、验证登录流程。这个阶段不需要 updater 私钥。
+该方式适用于本地开发、界面调试和功能验证，不需要 updater 私钥。
 
 前端静态资源直接位于 `src/`，Tauri 的 `devPath` / `distDir` 也都指向这个目录。
 
@@ -63,22 +63,46 @@ npm run tauri build
 - 本地开发运行 `npm run tauri dev` 不需要 updater 密钥。
 - 按当前仓库配置直接执行 `npm run tauri build` 时，通常需要提供 updater 私钥和私钥密码，因为打包目标包含 `updater` 签名产物。
 - 当前 updater 公钥已经写入 `src-tauri/tauri.conf.json`，一般不需要额外手动提供公钥文件；真正敏感且必须保管好的是私钥和私钥密码。
-- 如果只是给自己本地验证功能、并不需要自动更新签名，可以临时移除 `src-tauri/tauri.conf.json` 里的 `updater` 打包目标后再构建测试包。
+- 如果仅用于本地测试，且不需要自动更新签名，可临时移除 `src-tauri/tauri.conf.json` 中的 `updater` 打包目标后再执行构建。
 - 如果要发布正式版或测试版，并保留客户端自动更新能力，则必须使用同一套 updater 私钥签名；否则客户端会因为验签不一致而无法安装更新。
 - beta 发布脚本 `scripts/publish-beta.ps1` 也依赖 `TAURI_PRIVATE_KEY` 与 `TAURI_KEY_PASSWORD`，可通过环境变量或脚本引导输入提供。
 
-### 协作者最常见的三种场景
+### 生成新的 updater 密钥
 
-- 只改代码并本地运行：执行 `npm install`、`npm run tauri dev`，不需要密钥。
-- 只想本地打一个测试安装包：可以先确认是否保留 `updater` target；若保留，通常仍需要私钥；若只是自测，可临时去掉 `updater` target 后再 `npm run tauri build`。
-- 需要产出可分发、可自动更新的正式包或测试包：必须准备好同一套 updater 私钥和密码，并同步更新版本号、签名产物和对应的 `updater*.json`。
+如需为新的发布通道生成一套 updater 密钥，可执行：
 
-## 协作建议
+```powershell
+npx tauri signer generate -w .\keys\updater.key
+```
 
-- 接手前先确认版本号是否同时和 `src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`、`updater.json`、`updater-beta.json` 保持一致。
-- 只做界面或逻辑修改时，优先用 `npm run tauri dev` 验证，不必一开始就碰签名和发版流程。
-- 若要交付给其他人安装，先确认自己构建出来的是“仅本地测试包”还是“带自动更新能力的正式包”，两者对密钥和元数据要求不同。
-- 若要维护测试通道，优先使用 `scripts/publish-beta.ps1`，不要只替换安装包文件而忘记同步 `updater-beta.json`。
+该命令会生成私钥文件，并在终端输出对应的公钥。
+
+如需在非交互模式下直接指定密码，可执行：
+
+```powershell
+npx tauri signer generate -w .\keys\updater.key -p "你的私钥密码" --ci
+```
+
+生成后请完成以下配置：
+
+- 将生成的公钥写入 `src-tauri/tauri.conf.json` 的 `tauri.updater.pubkey`。
+- 在构建前设置 `TAURI_PRIVATE_KEY` 与 `TAURI_KEY_PASSWORD` 环境变量。
+- 使用同一套私钥对对应发布通道的更新包持续签名。
+
+示例：
+
+```powershell
+$env:TAURI_PRIVATE_KEY = Get-Content .\keys\updater.key -Raw
+$env:TAURI_KEY_PASSWORD = "你的私钥密码"
+npm run tauri build
+```
+
+### 发布注意事项
+
+- 如果需要延续当前项目既有用户的自动更新链路，不应重新生成新的 updater 密钥，而应继续使用原有私钥；否则旧版本客户端将无法验证新的更新包。
+- 只有在建立新的分发渠道、独立维护新的更新体系时，才适合生成新的 updater 密钥。
+- 发布前请同时检查 `src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`、`updater.json`、`updater-beta.json` 中的版本号、下载地址和签名信息是否一致。
+- 如需维护测试通道，建议使用 `scripts/publish-beta.ps1` 统一处理构建、签名和 `updater-beta.json` 更新。
 
 ## 项目结构
 
