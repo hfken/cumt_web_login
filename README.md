@@ -5,67 +5,100 @@
 ![Rust](https://img.shields.io/badge/Rust-Native-black?logo=rust)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows)
 
-这是一个专为中国矿业大学（CUMT）校园网设计的极轻量级、原生化自动登录客户端。
+面向中国矿业大学校园网的 Windows 桌面自动登录客户端，基于 `Tauri 1.x + Rust + 原生 HTML/CSS/JavaScript` 实现。当前产品版本为 `1.21.1`。
 
-体积小巧，打包后的独立安装程序仅 **5MB** 左右，后台常驻内存极低，是替代浏览器频繁手动登录的完美方案。
+它的目标不是堆复杂功能，而是把“开机后安静驻留、需要时自动连接、掉线后及时提醒、更新时尽量少打扰”这条链路做好。
 
-## ✨ 核心特性
+## 功能概览
 
-- ⚡️ **极简无感**：支持 Windows 计划任务开机自启。
-- 🛡️ **联网状态检测**：支持自定义频率（最低 5 秒）的后台断线监控轮询，网络断线时，自动弹出提示警告。
-- 📉 **超低占用**：得益于 Rust 的内存安全机制与原生系统级 API 调用，后台常驻托盘模式下对 CPU 完全零打扰。
-- 🔀 **智能“顶号”逻辑**：支持多重内网路由器环境登录，能穿透识别当前路由器下的 Dr.com 在线 UID；当识别到非本机预设账号在线时，允许一键强行覆写接通（多设备宿舍福音）。
-- 🔀 **支持热更新**：可一键检测最新版本，保证认证效果。
+- 支持学号 / 密码 / 运营商登录，支持移动、电信、联通和纯校园网接入。
+- 支持检测当前在线状态、手动登录、手动注销。
+- 检测到已有其他账号在线时，会先提示“顶号确认”，而不是直接强制下线对方。
+- 支持 Windows 开机后台自动登录，底层使用计划任务 `CampusNetworkAutoLogin`，启动参数为 `--hidden`。
+- 隐藏启动自动登录带短时重试逻辑；网络刚起时会继续重试，但检测到其他账号在线时不会自动顶号。
+- 支持后台自动监控网络状态，默认每 `15` 秒检测一次，最小支持 `5` 秒。
+- 支持自定义校园网认证地址，兼容 `10.2.5.251`、`http://10.2.5.251`、`http://10.2.5.251:801` 这类输入。
+- 校园网检测、登录、注销请求会绕过 Windows 系统代理，减少 Clash 系统代理等场景下的误判。
+- 主窗口关闭后默认隐藏到系统托盘，不直接退出进程；托盘支持“显示主界面 / 静默登录 / 静默注销 / 完全退出”。
+- 支持单实例运行，重复打开时会唤起已有窗口并给出通知。
+- 支持内置更新检查、独立更新日志窗口、正式通道热更新，以及测试版安装器下载。
+- 设置页支持还原本地配置，并同步删除开机自启计划任务。
 
-## 📸 界面预览
+## 界面预览
 
 ![登录页](assets/login.png)
 ![已连接](assets/success.png)
 ![设置页](assets/setting.png)
 
-## 🚀 快速上手 (开发者环境)
+## 运行环境
 
-本项目依赖完整的 [Rust 工具链](https://rustup.rs/) 和 [Node.js](https://nodejs.org/)。
+- Windows 10/11
+- Node.js 18+
+- Rust 工具链
+- Visual Studio C++ Build Tools
 
-### 环境准备
-
-1. 安装 Node.js (推荐 v18+)
-2. 安装 Rust (使用 `rustup` 安装)
-3. 确保安装了 C++ 生成工具 (Visual Studio Desktop Development with C++)
-
-### 安装与运行
-
-克隆项目并进入 `rust_rebuild` 目录：
+## 开发
 
 ```bash
-cd rust_rebuild
-
-# 安装前端依赖
 npm install
-
-# 在开发模式下运行 (支持热重载)
 npm run tauri dev
 ```
 
-### 📦 构建生产版本
+前端静态资源直接位于 `src/`，Tauri 的 `devPath` / `distDir` 也都指向这个目录。
 
-如需编译并打包出 `.exe` 或 `.msi` 安装包，请执行：
+## 构建
 
 ```bash
 npm run tauri build
 ```
 
-编译成功后，完整的 NSIS 安装包将会输出到：
-`src-tauri/target/release/bundle/nsis/`
+构建完成后，安装包和 updater 产物会输出到 `src-tauri/target/release/bundle/nsis/`。
 
-## ⚙️ 架构与技术栈
+## 项目结构
 
-* **后端逻辑 (Rust)**：使用 `reqwest` 拦截并代理 Dr.com 的 `chkstatus` 与认证协议发包；通过 Windows 计划任务实现登录时静默自启，并顺手清理旧的 HKCU 注册表自启项；通过 Tauri 系统托盘 (SystemTray) 与 Notification API 实现后台驻留与断网提示。
-* **前端渲染 (Webview2)**：抛弃所有庞大框架，使用 `Vanilla Javascript` + 纯 `HTML/CSS` 手写构建，保证页面秒级渲染响应。
-* **数据持久化**：所有的本地用户凭证与配置储存在本地，可持久化存储。
+```text
+src/
+  index.html          主界面与各类覆盖层
+  renderer.js         前端交互、状态轮询、更新入口
+  styles.css          主窗口样式
+  update-log.*        独立更新日志子窗口
 
-## 📜 协议声明
+src-tauri/
+  src/app.rs          Tauri 启动、托盘、窗口生命周期、单实例
+  src/commands.rs     前端 invoke 命令出口
+  src/models.rs       共享数据结构
+  src/services/
+    config.rs         配置读写、计划任务自启动同步
+    portal.rs         校园网检测、登录、注销
+    system.rs         通知、更新、安装、重启
 
-本项目仅供学习与交流 Tauri 及 Rust 技术栈使用，请自觉遵守中国矿业大学校园网相关使用规定，切勿用于恶意并发请求等破坏性行为。
+scripts/
+  publish-beta.ps1    beta 通道发布辅助脚本
+```
 
-基于 **MIT License** 开源。
+## 配置与行为说明
+
+- 本地配置会保存学号、密码、运营商、检测频率、自启动等信息。
+- 设置页每次打开都会重新从后端读取配置，避免前端显示与磁盘状态不一致。
+- 若已开启开机后台自动登录，但系统里的计划任务缺失、指向旧路径或参数异常，应用会在启动后提示修复。
+- 自动更新以“当前是否可以访问互联网”为判断前提，不要求必须先完成校园网认证。
+- 正式版默认走 `updater.json`；测试版安装入口会读取 `updater-beta.json` 并拉起外部安装器。
+
+## 已知限制
+
+- 当前重点支持 Windows 桌面端。
+- 本地配置中的密码仍为明文保存。
+- “绕过代理”当前主要覆盖 Windows 系统代理场景；如果使用的是 Clash TUN 一类网络层接管，校园网请求仍可能失败。
+- `updater.json` 与 `updater-beta.json` 需要在实际发版时手动同步到对应安装包和签名信息。
+
+## 发布备注
+
+- 当前正式代码版本为 `1.21.1`。
+- beta 通道辅助脚本位于 `scripts/publish-beta.ps1`。
+- 实际发布时请同时检查 `src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`、`updater.json`、`updater-beta.json` 的版本与下载地址是否一致。
+
+## 协议声明
+
+本项目仅供学习与交流 Tauri / Rust 技术栈使用，请遵守中国矿业大学校园网相关规定。
+
+基于 `MIT License` 开源。
