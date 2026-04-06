@@ -5,9 +5,9 @@
 ![Rust](https://img.shields.io/badge/Rust-Native-black?logo=rust)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows)
 
-本项目是面向中国矿业大学校园网认证场景的 Windows 桌面自动登录客户端，基于 `Tauri 1.x + Rust + 原生 HTML/CSS/JavaScript` 实现。当前产品版本为 `1.21.1`。
+本项目是面向中国矿业大学校园网认证场景的 Windows 桌面自动登录客户端，基于 `Tauri 1.x + Rust + 原生 HTML/CSS/JavaScript` 实现。当前产品正式版本为 `1.21.1`，合并于已经过验证的测试版 `1.21.1-beta.2`（两者除更新通道外完全相同）。
 
-应用聚焦于校园网认证的常用流程，提供后台驻留、开机自动登录、断线检测、计划任务自启动修复及应用内更新等能力。
+应用聚焦于校园网认证的常用流程，提供后台驻留、开机自动登录、断线检测、计划任务自启动及应用内更新等能力。
 
 ## 功能概览
 
